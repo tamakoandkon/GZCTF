@@ -25,7 +25,7 @@ import tooltipClasses from '@Styles/Tooltip.module.css'
 const CustomTheme: MantineThemeOverride = {
   colors: {
     gray: [
-      '#EBEBEB',
+      '#F3F2EB',
       '#CFCFCF',
       '#B3B3B3',
       '#969696',
@@ -61,7 +61,7 @@ const CustomTheme: MantineThemeOverride = {
       '#FC0000',
     ],
     light: [
-      '#FFFFFF',
+      '#FDFDFD',
       '#F8F8F8',
       '#EFEFEF',
       '#E0E0E0',
