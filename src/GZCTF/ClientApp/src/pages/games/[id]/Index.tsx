@@ -21,6 +21,7 @@ import { FC, useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { GameJoinModal } from '@Components/GameJoinModal'
+import { GameEntryAnimation } from '@Components/GameEntryAnimation'
 import { GameProgress } from '@Components/GameProgress'
 import { Markdown } from '@Components/MarkdownRenderer'
 import { WithNavBar } from '@Components/WithNavbar'
@@ -228,6 +229,7 @@ const GameDetail: FC = () => {
 
   return (
     <WithNavBar width="100%" isLoading={!game} minWidth={0} withFooter>
+      {Number.isFinite(numId) && <GameEntryAnimation gameId={numId} poster={game?.poster} />}
       <div ref={targetRef} className={classes.root}>
         <Group wrap="nowrap" justify="space-between" w="100%" p={`0 ${theme.spacing.md}`} className={classes.container}>
           <Stack gap={6} className={classes.flexGrowAtSm}>
