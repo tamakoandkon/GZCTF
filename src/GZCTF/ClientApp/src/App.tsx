@@ -1,4 +1,4 @@
-import { Center, Loader, MantineProvider } from '@mantine/core'
+import { Center, Loader, MantineProvider, localStorageColorSchemeManager } from '@mantine/core'
 import { DatesProvider } from '@mantine/dates'
 import { emotionTransform, MantineEmotionProvider } from '@mantine/emotion'
 import { ModalsProvider } from '@mantine/modals'
@@ -22,6 +22,10 @@ import '@mantine/dropzone/styles.css'
 import '@mantine/notifications/styles.css'
 import './styles/App.css'
 
+const colorSchemeManager = localStorageColorSchemeManager({
+  key: 'gzctf-color-scheme-1.8.2',
+})
+
 export const App: FC = () => {
   useBanner()
 
@@ -30,7 +34,13 @@ export const App: FC = () => {
   const { theme } = useCustomTheme()
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="dark" deduplicateInlineStyles stylesTransform={emotionTransform}>
+    <MantineProvider
+      defaultColorScheme="light"
+      colorSchemeManager={colorSchemeManager}
+      theme={theme}
+      deduplicateInlineStyles
+      stylesTransform={emotionTransform}
+    >
       <MantineEmotionProvider>
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <Notifications zIndex={5000} />

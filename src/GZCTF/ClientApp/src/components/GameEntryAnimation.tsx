@@ -1,5 +1,6 @@
 import { CSSProperties, FC, useEffect, useMemo, useState } from 'react'
 import { LogoBox } from '@Components/LogoBox'
+import { useConfig } from '@Hooks/useConfig'
 import { consumeGameTransitionState } from '@Utils/gameTransition'
 import classes from '@Styles/GameEntryAnimation.module.css'
 
@@ -24,6 +25,7 @@ type IntroStyle = CSSProperties & {
 }
 
 export const GameEntryAnimation: FC<GameEntryAnimationProps> = ({ gameId, poster, onCompleted }) => {
+  const { config } = useConfig()
   const [phase, setPhase] = useState<Phase>('idle')
 
   const transitionState = useMemo(() => consumeGameTransitionState(gameId), [gameId])
@@ -114,7 +116,7 @@ export const GameEntryAnimation: FC<GameEntryAnimationProps> = ({ gameId, poster
         <div className={classes.logoWrapper}>
           <LogoBox size="5rem" className={classes.logo} />
         </div>
-        <div className={classes.title}>第四届“山城杯”大学生网络安全联赛</div>
+        <div className={classes.title}>{config?.title ?? ''}</div>
       </div>
     </div>
   )
