@@ -50,12 +50,34 @@ public class ExerciseInstanceRepository(
         {
             // dynamic flag dispatch
             if (challenge.Type == ChallengeType.DynamicContainer)
+            {
                 instance.FlagContext = new()
                 {
                     PoolChallenge = challenge,
                     Flag = challenge.GenerateDynamicFlagForUser(user.Id),
                     IsOccupied = true
                 };
+            }
+            else if (challenge.Type == ChallengeType.DynamicAttachment)
+            {
+                var flags = await Context.FlagContexts
+                    .Where(e => e.PoolChallengeId == exerciseId && !e.IsOccupied)
+                    .ToListAsync(token);
+
+                if (flags.Count == 0)
+                {
+                    logger.SystemLog(
+                        localizer[nameof(Resources.Program.InstanceRepository_DynamicFlagsNotEnough),
+                            challenge.Title, challenge.Id],
+                        TaskStatus.Failed, LogLevel.Warning);
+                    await transaction.RollbackAsync(token);
+                    return null;
+                }
+
+                var pos = Random.Shared.Next(flags.Count);
+                flags[pos].IsOccupied = true;
+                instance.FlagId = flags[pos].Id;
+            }
 
             // instance.FlagContext is null by default
             // static flag does not need to be dispatched

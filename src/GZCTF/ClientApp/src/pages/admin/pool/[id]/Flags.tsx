@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Button,
   Center,
   Chip,
@@ -21,7 +22,7 @@ import {
 } from '@mantine/core'
 import { useModals } from '@mantine/modals'
 import { showNotification } from '@mantine/notifications'
-import { mdiCheck, mdiKeyboardBackspace } from '@mdi/js'
+import { mdiCheck, mdiClose, mdiKeyboardBackspace } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -31,7 +32,8 @@ import { WithAdminTab } from '@Components/admin/WithAdminTab'
 import { showErrorMsg } from '@Utils/Shared'
 import { useDisplayInputStyles } from '@Utils/ThemeOverride'
 import { useEditPool } from '@Hooks/useEdit'
-import api, { FileType, FlagInfoModel } from '@Api'
+import api, { ChallengeType, FileType, FlagCreateModel, FlagInfoModel } from '@Api'
+import misc from '@Styles/Misc.module.css'
 import uploadClasses from '@Styles/Upload.module.css'
 
 const PoolFlags: FC = () => {
@@ -52,6 +54,10 @@ const PoolFlags: FC = () => {
   const [progress, setProgress] = useState(0)
   const [flagCreateModalOpen, setFlagCreateModalOpen] = useState(false)
   const [newFlag, setNewFlag] = useState('')
+  const [uploadModalOpened, setUploadModalOpened] = useState(false)
+  const [remoteModalOpened, setRemoteModalOpened] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
+  const [remoteText, setRemoteText] = useState('')
 
   const FileTypeDesrcMap = new Map<FileType, string>([
     [FileType.None, t('challenge.file_type.none')],
@@ -199,6 +205,80 @@ const PoolFlags: FC = () => {
     }
   }
 
+  // DynamicAttachment: batch upload one flag per file (flag = file name)
+  const onUploadAttachments = async () => {
+    if (files.length === 0) return
+
+    setProgress(0)
+    setDisabled(true)
+
+    try {
+      const res = await api.assets.assetsUpload(
+        { files },
+        { filename: pool?.fileName ?? 'attachment' },
+        {
+          onUploadProgress: (e) => {
+            setProgress((e.loaded / (e.total ?? 1)) * 90)
+          },
+        }
+      )
+      setProgress(95)
+      if (res.data) {
+        await api.edit.editAddPoolFlags(
+          numId,
+          res.data.map((f, idx) => ({
+            flag: files[idx].name,
+            attachmentType: FileType.Local,
+            fileHash: f.hash,
+          }))
+        )
+        setProgress(0)
+        setFiles([])
+        setUploadModalOpened(false)
+        mutate()
+        showNotification({
+          color: 'teal',
+          message: t('admin.notification.games.challenges.attachment.updated'),
+          icon: <Icon path={mdiCheck} size={1} />,
+        })
+      }
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
+  }
+
+  // DynamicAttachment: add remote attachments with flags (one "flag url" pair per line)
+  const onUploadRemote = async () => {
+    const flags: FlagCreateModel[] = []
+    remoteText.split('\n').forEach((line) => {
+      let part = line.split(' ')
+      part = part.length === 1 ? line.split('\t') : part
+      if (part.length !== 2) return
+      flags.push({ flag: part[0], attachmentType: FileType.Remote, remoteUrl: part[1] })
+    })
+    if (flags.length === 0) return
+
+    setDisabled(true)
+
+    try {
+      await api.edit.editAddPoolFlags(numId, flags)
+      showNotification({
+        color: 'teal',
+        message: t('admin.notification.games.challenges.attachment.updated'),
+        icon: <Icon path={mdiCheck} size={1} />,
+      })
+      setRemoteText('')
+      setRemoteModalOpened(false)
+      mutate()
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
+  }
+
   return (
     <WithAdminTab
       isLoading={!pool}
@@ -303,9 +383,20 @@ const PoolFlags: FC = () => {
         {/* Flags */}
         <Group justify="space-between" mt="md">
           <Title order={2}>{t('admin.content.games.challenges.flag.title')}</Title>
-          <Button disabled={disabled} w="122px" onClick={() => setFlagCreateModalOpen(true)}>
-            {t('admin.button.challenges.flag.add.normal')}
-          </Button>
+          {pool?.type === ChallengeType.DynamicAttachment ? (
+            <Group justify="right" gap="xs">
+              <Button disabled={disabled} w="122px" onClick={() => setRemoteModalOpened(true)}>
+                {t('admin.button.challenges.flag.add.remote')}
+              </Button>
+              <Button disabled={disabled} w="122px" onClick={() => setUploadModalOpened(true)}>
+                {t('admin.button.challenges.flag.add.dynamic')}
+              </Button>
+            </Group>
+          ) : (
+            <Button disabled={disabled} w="122px" onClick={() => setFlagCreateModalOpen(true)}>
+              {t('admin.button.challenges.flag.add.normal')}
+            </Button>
+          )}
         </Group>
         <Divider />
         <ScrollArea h="calc(100vh - 30rem)" pos="relative">
@@ -335,6 +426,91 @@ const PoolFlags: FC = () => {
           />
           <Button fullWidth disabled={disabled} onClick={onConfirmAddFlag}>
             {t('admin.button.challenges.flag.add.normal')}
+          </Button>
+        </Stack>
+      </Modal>
+
+      {/* DynamicAttachment: batch upload, one flag per file */}
+      <Modal
+        opened={uploadModalOpened}
+        onClose={() => setUploadModalOpened(false)}
+        title={t('admin.button.challenges.flag.add.dynamic')}
+        size="40%"
+      >
+        <Stack>
+          <Text size="sm">
+            {t('admin.content.games.challenges.attachment.instruction.dynamic.content')}
+            <br />
+            <Text fw="bold" span>
+              {t('admin.content.games.challenges.attachment.instruction.dynamic.format')}
+            </Text>
+            <br />
+          </Text>
+          <ScrollArea offsetScrollbars h="30vh" pos="relative">
+            {files.length === 0 ? (
+              <>
+                <Overlay opacity={0.3} color={colorScheme === 'dark' ? 'black' : 'white'} />
+                <Center h="calc(30vh - 20px)">
+                  <Text>{t('admin.placeholder.games.challenges.attachment.no_file_selected.title')}</Text>
+                </Center>
+              </>
+            ) : (
+              <Stack gap="xs">
+                {files.map((file) => (
+                  <Group key={file.name} justify="space-between" wrap="nowrap">
+                    <Text lineClamp={1} ff="monospace">
+                      {file.name}
+                    </Text>
+                    <ActionIcon onClick={() => setFiles(files.filter((f) => f !== file))}>
+                      <Icon path={mdiClose} size={1} />
+                    </ActionIcon>
+                  </Group>
+                ))}
+              </Stack>
+            )}
+          </ScrollArea>
+          <Group grow>
+            <FileButton multiple onChange={setFiles}>
+              {(props) => (
+                <Button {...props} disabled={disabled}>
+                  {t('common.button.select_file')}
+                </Button>
+              )}
+            </FileButton>
+            <Button disabled={disabled || files.length < 1} onClick={onUploadAttachments}>
+              {t('admin.button.challenges.flag.add.dynamic')}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* DynamicAttachment: remote attachments with flags */}
+      <Modal
+        opened={remoteModalOpened}
+        onClose={() => setRemoteModalOpened(false)}
+        title={t('admin.button.challenges.flag.add.remote')}
+        size="35%"
+      >
+        <Stack>
+          <Text size="sm">
+            {t('admin.content.games.challenges.attachment.instruction.remote.content')}
+            <br />
+            <Text fw="bold" span>
+              {t('admin.content.games.challenges.attachment.instruction.remote.format')}
+            </Text>
+          </Text>
+          <Textarea
+            required
+            autosize
+            minRows={8}
+            maxRows={12}
+            value={remoteText}
+            classNames={{ input: misc.ffmono }}
+            onChange={(e) => setRemoteText(e.target.value)}
+            placeholder={'flag{hello_world} http://example.com/1.zip'}
+          />
+          <Button fullWidth disabled={disabled} onClick={onUploadRemote}>
+            {t('admin.button.games.challenges.attachment.batch_add')}
           </Button>
         </Stack>
       </Modal>
