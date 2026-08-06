@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react'
 import { OnceSWRConfig } from '@Hooks/useConfig'
-import api, { ChallengeInfoModel } from '@Api'
+import api, { ChallengeInfoModel, PoolChallengeEditDetailModel, PoolChallengeInfoModel } from '@Api'
 
 export const useEditChallenge = (numId: number, numCId: number) => {
   const { data: challenge, error, mutate } = api.edit.useEditGetGameChallenge(numId, numCId, OnceSWRConfig)
 
   return { challenge, error, mutate }
+}
+
+export const useEditPool = (numId: number) => {
+  const { data: pool, error, mutate } = api.edit.useEditGetPoolChallenge(numId, OnceSWRConfig)
+
+  return { pool, error, mutate }
+}
+
+export const useEditPools = () => {
+  const { data: pools, error, mutate } = api.edit.useEditGetPoolChallenges(OnceSWRConfig)
+
+  return { pools, error, mutate }
 }
 
 export const useEditChallenges = (numId: number) => {
