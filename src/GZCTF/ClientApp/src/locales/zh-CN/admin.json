@@ -465,7 +465,8 @@
       "linked_badge": "题库",
       "difficulty": "难度",
       "tags": "标签",
-      "range_settings": "靶场设置"
+      "range_settings": "靶场设置",
+      "linked_hint": "该题内容来自题库，需在题库页面编辑；此处仅可修改比赛计分配置（分值/衰减/首杀/流量捕获）"
     }
   },
   "label": {

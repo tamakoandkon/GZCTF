@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Badge,
   Card,
   Group,
   Progress,
@@ -60,9 +61,16 @@ export const ChallengeEditCard: FC<ChallengeEditCardProps> = ({ challenge, onTog
         <Icon path={data!.icon} color={theme.colors[data?.color ?? theme.primaryColor][5]} size={1.2} />
 
         <Stack gap={0} maw={contentWidth} miw={contentWidth}>
-          <Text truncate fw="bold">
-            {challenge.title}
-          </Text>
+          <Group gap="xs" wrap="nowrap">
+            <Text truncate fw="bold">
+              {challenge.title}
+            </Text>
+            {challenge.isLinked && (
+              <Badge color="teal" size="xs" variant="light">
+                {t('admin.content.pool.linked_badge')}
+              </Badge>
+            )}
+          </Group>
           <Text size="sm" fw="bold" ff="monospace" w="5rem">
             {challenge.score}
             <Text span fw="bold" c="dimmed">

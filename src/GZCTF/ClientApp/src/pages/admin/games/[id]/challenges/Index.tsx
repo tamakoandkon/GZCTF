@@ -1,7 +1,7 @@
 import { Button, Center, ComboboxItem, Group, ScrollArea, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { useModals } from '@mantine/modals'
 import { showNotification } from '@mantine/notifications'
-import { mdiCheck, mdiHexagonSlice6, mdiPlus, mdiRefresh } from '@mdi/js'
+import { mdiCheck, mdiDatabaseEditOutline, mdiHexagonSlice6, mdiPlus, mdiRefresh } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { Dispatch, FC, SetStateAction, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +9,7 @@ import { useParams } from 'react-router'
 import { BloodBonusModel } from '@Components/admin/BloodBonusModel'
 import { ChallengeCreateModal } from '@Components/admin/ChallengeCreateModal'
 import { ChallengeEditCard } from '@Components/admin/ChallengeEditCard'
+import { PoolChallengePickerModal } from '@Components/admin/PoolChallengePickerModal'
 import { WithGameEditTab } from '@Components/admin/WithGameEditTab'
 import { showErrorMsg } from '@Utils/Shared'
 import { ChallengeCategoryItem, ChallengeCategoryList, useChallengeCategoryLabelMap } from '@Utils/Shared'
@@ -20,6 +21,7 @@ const GameChallengeEdit: FC = () => {
   const numId = parseInt(id ?? '-1')
 
   const [createOpened, setCreateOpened] = useState(false)
+  const [fromPoolOpened, setFromPoolOpened] = useState(false)
   const [bonusOpened, setBonusOpened] = useState(false)
   const [category, setCategory] = useState<ChallengeCategory | null>(null)
   const challengeCategoryLabelMap = useChallengeCategoryLabelMap()
@@ -116,6 +118,12 @@ const GameChallengeEdit: FC = () => {
             <Button leftSection={<Icon path={mdiHexagonSlice6} size={1} />} onClick={() => setBonusOpened(true)}>
               {t('admin.button.challenges.bonus')}
             </Button>
+            <Button
+              leftSection={<Icon path={mdiDatabaseEditOutline} size={1} />}
+              onClick={() => setFromPoolOpened(true)}
+            >
+              {t('admin.button.pool.link_to_game')}
+            </Button>
             <Button mr="18px" leftSection={<Icon path={mdiPlus} size={1} />} onClick={() => setCreateOpened(true)}>
               {t('admin.button.challenges.new')}
             </Button>
@@ -152,6 +160,13 @@ const GameChallengeEdit: FC = () => {
         size="30%"
         opened={bonusOpened}
         onClose={() => setBonusOpened(false)}
+      />
+      <PoolChallengePickerModal
+        title={t('admin.button.pool.link_to_game')}
+        size="40%"
+        opened={fromPoolOpened}
+        onClose={() => setFromPoolOpened(false)}
+        onAdded={() => mutate()}
       />
     </WithGameEditTab>
   )

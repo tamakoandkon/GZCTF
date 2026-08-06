@@ -1200,6 +1200,13 @@ export interface ChallengeEditDetailModel {
    * @format double
    */
   difficulty: number;
+  /** Whether this challenge is linked to a pool challenge */
+  isLinked?: boolean;
+  /**
+   * Pool challenge ID, null means a standalone challenge
+   * @format int32
+   */
+  poolChallengeId?: number | null;
 }
 
 export interface Attachment {
@@ -1284,6 +1291,13 @@ export interface ChallengeInfoModel {
    * @format uint64
    */
   deadlineUtc?: number | null;
+  /** Whether this challenge is linked to a pool challenge */
+  isLinked?: boolean;
+  /**
+   * Pool challenge ID, null means a standalone challenge
+   * @format int32
+   */
+  poolChallengeId?: number | null;
 }
 
 /** Challenge update information (Edit) */

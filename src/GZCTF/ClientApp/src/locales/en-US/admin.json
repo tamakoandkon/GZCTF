@@ -465,7 +465,8 @@
       "linked_badge": "Pool",
       "difficulty": "Difficulty",
       "tags": "Tags",
-      "range_settings": "Range Settings"
+      "range_settings": "Range Settings",
+      "linked_hint": "Content is managed in the pool. Only per-game scoring config (score, decay, blood bonus, traffic capture) can be edited here."
     }
   },
   "label": {
