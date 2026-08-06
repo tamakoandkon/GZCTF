@@ -60,4 +60,9 @@ public interface IPoolChallengeRepository : IRepository
     /// Get games that reference the pool challenge
     /// </summary>
     public Task<ReferencedGameInfo[]> GetReferencedGames(int poolId, CancellationToken token = default);
+
+    /// <summary>
+    /// Number of games referencing each pool challenge (pool ID → count)
+    /// </summary>
+    public Task<Dictionary<int, int>> GetReferencedGameCounts(CancellationToken token = default);
 }

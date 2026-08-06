@@ -40,6 +40,8 @@ public class EditController(
     GameExportService exportService,
     GameImportService importService,
     IDivisionRepository divisionRepository,
+    IPoolChallengeRepository poolChallengeRepository,
+    IExerciseInstanceRepository exerciseInstanceRepository,
     IStringLocalizer<Program> localizer) : Controller
 {
     /// <summary>
@@ -1124,4 +1126,429 @@ public class EditController(
                 StatusCodes.Status500InternalServerError);
         }
     }
+
+    #region Pool
+
+    /// <summary>
+    /// Get All Pool Challenges
+    /// </summary>
+    /// <remarks>
+    /// Retrieving all pool challenges requires administrator privileges
+    /// </remarks>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully retrieved pool challenges</response>
+    [HttpGet("Pools")]
+    [ProducesResponseType(typeof(PoolChallengeInfoModel[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPoolChallenges(CancellationToken token)
+    {
+        var challenges = await poolChallengeRepository.GetPoolChallenges(token);
+        var counts = await poolChallengeRepository.GetReferencedGameCounts(token);
+
+        return Ok(challenges.Select(c =>
+        {
+            var model = PoolChallengeInfoModel.FromChallenge(c);
+            model.ReferencedGamesCount = counts.GetValueOrDefault(c.Id);
+            return model;
+        }));
+    }
+
+    /// <summary>
+    /// Add Pool Challenge
+    /// </summary>
+    /// <remarks>
+    /// Adding a pool challenge requires administrator privileges
+    /// </remarks>
+    /// <param name="model"></param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully added pool challenge</response>
+    [HttpPost("Pools")]
+    [ProducesResponseType(typeof(PoolChallengeEditDetailModel), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddPoolChallenge([FromBody] PoolChallengeCreateModel model,
+        CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.CreatePoolChallenge(new()
+        {
+            Title = model.Title,
+            Category = model.Category,
+            Type = model.Type,
+            Difficulty = model.Difficulty,
+            Tags = model.Tags
+        }, token);
+
+        return Ok(PoolChallengeEditDetailModel.FromChallenge(challenge));
+    }
+
+    /// <summary>
+    /// Get Pool Challenge
+    /// </summary>
+    /// <remarks>
+    /// Retrieving a pool challenge requires administrator privileges
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully retrieved pool challenge</response>
+    /// <response code="404">Challenge not found</response>
+    [HttpGet("Pools/{id:int}")]
+    [ProducesResponseType(typeof(PoolChallengeEditDetailModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPoolChallenge([FromRoute] int id, CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        if (challenge.Type != ChallengeType.DynamicContainer)
+            await poolChallengeRepository.LoadFlags(challenge, token);
+
+        var model = PoolChallengeEditDetailModel.FromChallenge(challenge);
+
+        var acceptedCounts = await exerciseInstanceRepository.GetAcceptedCounts(token);
+        model.AcceptedCount = acceptedCounts.GetValueOrDefault(id);
+
+        model.ReferencedGames = (await poolChallengeRepository.GetReferencedGames(id, token)).ToList();
+
+        return Ok(model);
+    }
+
+    /// <summary>
+    /// Update Pool Challenge
+    /// </summary>
+    /// <remarks>
+    /// Updating a pool challenge requires administrator privileges. Flags are not affected;
+    /// use Flag-related APIs to modify. Range score changes take effect immediately.
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="model"></param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully updated pool challenge</response>
+    /// <response code="404">Challenge not found</response>
+    [HttpPut("Pools/{id:int}")]
+    [ProducesResponseType(typeof(PoolChallengeEditDetailModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdatePoolChallenge([FromRoute] int id,
+        [FromBody] PoolChallengeUpdateModel model, CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        if (model.FileName is not null && string.IsNullOrWhiteSpace(model.FileName))
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Challenge_DynamicAssetsNotNullable)]));
+
+        if (!string.IsNullOrWhiteSpace(model.FlagTemplate) && challenge.Type == ChallengeType.DynamicContainer &&
+            !model.IsValidFlagTemplate())
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_FlagTooTrivial)]));
+
+        if (challenge.Type != ChallengeType.DynamicContainer)
+            await poolChallengeRepository.LoadFlags(challenge, token);
+
+        // NOTE: IsEnabled can only be updated alone
+        if (model.IsEnabled is true && !challenge.IsEnabled && challenge.Type != ChallengeType.DynamicContainer &&
+            challenge.Flags.Count == 0)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NoFlag)]));
+
+        var rangeEnabled = model.RangeEnabled ?? challenge.RangeEnabled;
+        var rangeScoreChanged = challenge.RangeScore != (model.RangeScore ?? challenge.RangeScore);
+
+        await poolChallengeRepository.UpdatePoolChallenge(challenge, model, token);
+
+        // destroy range containers when the challenge is disabled in the range or globally
+        if ((model.IsEnabled == false || !rangeEnabled) && challenge.Type.IsContainer())
+            await exerciseInstanceRepository.DestroyAllContainers(challenge, token);
+
+        // scoreboard changes when acceptance or scoring configuration changes
+        if (rangeScoreChanged || model.RangeEnabled is not null || model.IsEnabled is not null ||
+            model.FlagTemplate is not null)
+            await cacheHelper.FlushExerciseScoreboardCache(token);
+
+        var result = PoolChallengeEditDetailModel.FromChallenge(challenge);
+
+        var acceptedCounts = await exerciseInstanceRepository.GetAcceptedCounts(token);
+        result.AcceptedCount = acceptedCounts.GetValueOrDefault(id);
+
+        result.ReferencedGames = (await poolChallengeRepository.GetReferencedGames(id, token)).ToList();
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Remove Pool Challenge
+    /// </summary>
+    /// <remarks>
+    /// Removing a pool challenge requires administrator privileges. A challenge referenced
+    /// by games cannot be removed; unlink it from all games first.
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully removed pool challenge</response>
+    /// <response code="404">Challenge not found</response>
+    /// <response code="400">Challenge is referenced by games</response>
+    [HttpDelete("Pools/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RemovePoolChallenge([FromRoute] int id, CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        // delete guard: a challenge referenced by games cannot be removed
+        if ((await poolChallengeRepository.GetReferencedGames(id, token)).Length > 0)
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.PoolChallenge_ReferencedByGames)]));
+
+        await poolChallengeRepository.RemovePoolChallenge(challenge, token);
+
+        await cacheHelper.FlushExerciseScoreboardCache(token);
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Add Pool Challenge Flags
+    /// </summary>
+    /// <remarks>
+    /// Adding pool challenge flags requires administrator privileges
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="models"></param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully added pool challenge flags</response>
+    /// <response code="404">Challenge not found</response>
+    [HttpPost("Pools/{id:int}/Flags")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddPoolFlags([FromRoute] int id, [FromBody] FlagCreateModel[] models,
+        CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        await poolChallengeRepository.AddFlags(challenge, models, token);
+
+        await cacheHelper.FlushExerciseScoreboardCache(token);
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Remove Pool Challenge Flag
+    /// </summary>
+    /// <remarks>
+    /// Removing a pool challenge flag requires administrator privileges
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="fId">Flag ID</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully removed pool challenge flag</response>
+    /// <response code="404">Challenge not found</response>
+    [HttpDelete("Pools/{id:int}/Flags/{fId:int}")]
+    [ProducesResponseType(typeof(TaskStatus), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemovePoolFlag([FromRoute] int id, [FromRoute] int fId, CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        var status = await poolChallengeRepository.RemoveFlag(challenge, fId, token);
+
+        if (status == TaskStatus.Success)
+            await cacheHelper.FlushExerciseScoreboardCache(token);
+
+        return Ok(status);
+    }
+
+    /// <summary>
+    /// Update Pool Challenge Attachment
+    /// </summary>
+    /// <remarks>
+    /// Updating a pool challenge attachment requires administrator privileges; only for
+    /// non-dynamic attachment challenges
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="model"></param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully updated pool challenge</response>
+    /// <response code="404">Challenge not found</response>
+    [HttpPost("Pools/{id:int}/Attachment")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdatePoolAttachment([FromRoute] int id,
+        [FromBody] AttachmentCreateModel model, CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        if (challenge.Type == ChallengeType.DynamicAttachment)
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Challenge_UseAssetsApiForDynamic)]));
+
+        await poolChallengeRepository.UpdateAttachment(challenge, model, token);
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Test Pool Challenge Container
+    /// </summary>
+    /// <remarks>
+    /// Testing a pool challenge container requires administrator privileges
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully started pool challenge container</response>
+    /// <response code="404">Challenge not found</response>
+    [HttpPost("Pools/{id:int}/Container")]
+    [ProducesResponseType(typeof(ContainerInfoModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreatePoolTestContainer([FromRoute] int id, CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        if (!challenge.Type.IsContainer())
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationNotAllowed)]));
+
+        if (challenge.ContainerImage is null || challenge.ExposePort is null)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Container_ConfigError)]));
+
+        var user = await userManager.GetUserAsync(User);
+
+        var container = await containerService.CreateContainerAsync(
+            new()
+            {
+                TeamId = "admin",
+                UserId = user!.Id,
+                ChallengeId = challenge.Id,
+                GameId = null,
+                Flag = challenge.Type.IsDynamic() ? challenge.GenerateTestFlag() : null,
+                Image = challenge.ContainerImage,
+                CPUCount = challenge.CPUCount ?? 1,
+                MemoryLimit = challenge.MemoryLimit ?? 64,
+                StorageLimit = challenge.StorageLimit ?? 256,
+                NetworkMode = challenge.NetworkMode ?? NetworkMode.Open,
+                ExposedPort = challenge.ExposePort.Value,
+            }, token);
+
+        if (container is null)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Container_CreationFailed)]));
+
+        challenge.TestContainer = container;
+        await poolChallengeRepository.SaveAsync(token);
+
+        logger.Log(
+            StaticLocalizer[nameof(Resources.Program.Container_TestContainerCreated), container.LogId],
+            user,
+            TaskStatus.Success);
+
+        return Ok(ContainerInfoModel.FromContainer(container));
+    }
+
+    /// <summary>
+    /// Destroy Test Pool Challenge Container
+    /// </summary>
+    /// <remarks>
+    /// Destroying a test pool challenge container requires administrator privileges
+    /// </remarks>
+    /// <param name="id">Pool challenge ID</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully destroyed pool challenge container</response>
+    /// <response code="404">Challenge not found</response>
+    [HttpDelete("Pools/{id:int}/Container")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DestroyPoolTestContainer([FromRoute] int id, CancellationToken token)
+    {
+        var challenge = await poolChallengeRepository.GetPoolChallenge(id, token);
+
+        if (challenge is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        if (challenge.TestContainer is null)
+            return Ok();
+
+        await containerRepository.DestroyContainer(challenge.TestContainer, token);
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// Add a pool challenge to a game as a linked challenge
+    /// </summary>
+    /// <remarks>
+    /// Adds a linked game challenge whose runtime content is read from the pool. Per-game
+    /// scoring configuration is set here. Requires administrator privileges.
+    /// </remarks>
+    /// <param name="id">Game ID</param>
+    /// <param name="model"></param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully added linked challenge</response>
+    /// <response code="404">Game or challenge not found</response>
+    /// <response code="400">Challenge already linked to this game</response>
+    [HttpPost("Games/{id:int}/Challenges/FromPool")]
+    [ProducesResponseType(typeof(ChallengeEditDetailModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddGameChallengeFromPool([FromRoute] int id,
+        [FromBody] GameChallengeFromPoolModel model, CancellationToken token)
+    {
+        var game = await gameRepository.GetGameById(id, token);
+
+        if (game is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        var pool = await poolChallengeRepository.GetPoolChallenge(model.PoolChallengeId, token);
+
+        if (pool is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        // prevent the same game from referencing the same pool challenge twice
+        if (await challengeRepository.GetChallengeByPoolId(id, model.PoolChallengeId, token) is not null)
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.PoolChallenge_AlreadyLinked)]));
+
+        var challenge = await challengeRepository.CreateChallenge(game, new GameChallenge
+        {
+            Title = pool.Title,
+            Category = pool.Category,
+            Type = pool.Type,
+            PoolChallengeId = pool.Id,
+            OriginalScore = model.OriginalScore ?? 1000,
+            MinScoreRate = model.MinScoreRate ?? 0.25,
+            Difficulty = model.Difficulty ?? 5,
+            DisableBloodBonus = model.DisableBloodBonus ?? false,
+            EnableTrafficCapture = pool.Type.IsContainer() && (model.EnableTrafficCapture ?? false),
+            IsEnabled = false // matches manually created challenges
+        }, token);
+
+        await cacheHelper.FlushScoreboardCache(game.Id, token);
+
+        return Ok(ChallengeEditDetailModel.FromChallenge(challenge));
+    }
+
+    #endregion
 }

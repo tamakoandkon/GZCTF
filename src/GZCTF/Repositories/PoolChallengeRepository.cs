@@ -136,4 +136,11 @@ public class PoolChallengeRepository(AppDbContext context, IBlobRepository blobR
             .Where(c => c.PoolChallengeId == poolId)
             .Select(c => new ReferencedGameInfo(c.GameId, c.Game.Title, c.Id))
             .ToArrayAsync(token);
+
+    public async Task<Dictionary<int, int>> GetReferencedGameCounts(CancellationToken token = default) =>
+        await Context.GameChallenges.AsNoTracking()
+            .Where(c => c.PoolChallengeId != null)
+            .GroupBy(c => c.PoolChallengeId!.Value)
+            .Select(g => new { PoolId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.PoolId, x => x.Count, token);
 }

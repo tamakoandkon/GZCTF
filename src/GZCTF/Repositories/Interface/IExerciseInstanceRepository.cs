@@ -1,3 +1,5 @@
+using GZCTF.Models.Request.Exercise;
+
 namespace GZCTF.Repositories.Interface;
 
 public interface IExerciseInstanceRepository : IRepository
@@ -31,4 +33,24 @@ public interface IExerciseInstanceRepository : IRepository
     /// <returns></returns>
     public Task<TaskResult<Container>> CreateContainer(ExerciseInstance instance, UserInfo user,
         CancellationToken token = default);
+
+    /// <summary>
+    /// 销毁某个题库题的全部靶场容器
+    /// </summary>
+    public Task DestroyAllContainers(PoolChallenge challenge, CancellationToken token = default);
+
+    /// <summary>
+    /// 获取用户已解的题目 ID 集合
+    /// </summary>
+    public Task<HashSet<int>> GetSolvedIds(Guid userId, CancellationToken token = default);
+
+    /// <summary>
+    /// 每道题的已解人数（题目 ID → 人数）
+    /// </summary>
+    public Task<Dictionary<int, int>> GetAcceptedCounts(CancellationToken token = default);
+
+    /// <summary>
+    /// 全局个人排行榜（实时派生）
+    /// </summary>
+    public Task<ExerciseScoreboardModel> GetScoreboard(CancellationToken token = default);
 }

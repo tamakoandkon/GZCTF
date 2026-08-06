@@ -1,4 +1,5 @@
 using GZCTF.Models.Internal;
+using GZCTF.Models.Request.Exercise;
 using GZCTF.Repositories.Interface;
 using GZCTF.Services.Container.Manager;
 using Microsoft.EntityFrameworkCore;
@@ -188,5 +189,85 @@ public class ExerciseInstanceRepository(
         await SaveAsync(token);
 
         await transaction.CommitAsync(token);
+    }
+
+    public async Task DestroyAllContainers(PoolChallenge challenge, CancellationToken token = default)
+    {
+        foreach (var container in await Context.ExerciseInstances
+                     .Include(i => i.Container)
+                     .Where(i => i.Exercise == challenge && i.ContainerId != null)
+                     .Select(i => i.Container)
+                     .ToArrayAsync(token))
+        {
+            if (container is null)
+                continue;
+
+            await containerRepository.DestroyContainer(container, token);
+        }
+    }
+
+    public async Task<HashSet<int>> GetSolvedIds(Guid userId, CancellationToken token = default) =>
+        await Context.ExerciseInstances.AsNoTracking()
+            .Where(i => i.UserId == userId && i.SolveTimeUtc > DateTimeOffset.FromUnixTimeSeconds(0))
+            .Select(i => i.ExerciseId)
+            .ToHashSetAsync(token);
+
+    public async Task<Dictionary<int, int>> GetAcceptedCounts(CancellationToken token = default) =>
+        await Context.ExerciseInstances.AsNoTracking()
+            .Where(i => i.SolveTimeUtc > DateTimeOffset.FromUnixTimeSeconds(0))
+            .GroupBy(i => i.ExerciseId)
+            .Select(g => new { ExerciseId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ExerciseId, x => x.Count, token);
+
+    public async Task<ExerciseScoreboardModel> GetScoreboard(CancellationToken token = default)
+    {
+        var solves = await (from inst in Context.ExerciseInstances.AsNoTracking()
+                join chal in Context.PoolChallenges.AsNoTracking()
+                    on inst.ExerciseId equals chal.Id
+                join user in Context.Users.AsNoTracking()
+                    on inst.UserId equals user.Id
+                where inst.SolveTimeUtc > DateTimeOffset.FromUnixTimeSeconds(0) &&
+                      chal.RangeEnabled && chal.IsEnabled
+                select new
+                {
+                    inst.UserId,
+                    user.UserName,
+                    user.AvatarHash,
+                    chal.RangeScore,
+                    inst.SolveTimeUtc
+                })
+            .ToListAsync(token);
+
+        var items = solves
+            .GroupBy(s => s.UserId)
+            .Select(g => new ExerciseScoreboardItem
+            {
+                UserId = g.Key,
+                UserName = g.First().UserName,
+                Avatar = g.First().AvatarHash is null
+                    ? null
+                    : $"/assets/{g.First().AvatarHash}/avatar",
+                Score = g.Sum(s => s.RangeScore),
+                SolvedCount = g.Count(),
+                LastSolveTime = g.Max(s => s.SolveTimeUtc)
+            })
+            .OrderByDescending(i => i.Score)
+            .ThenBy(i => i.LastSolveTime)
+            .ToList();
+
+        for (var i = 0; i < items.Count; i++)
+            items[i].Rank = i + 1;
+
+        var challengeSolvedCount = await Context.ExerciseInstances.AsNoTracking()
+            .Where(i => i.SolveTimeUtc > DateTimeOffset.FromUnixTimeSeconds(0))
+            .GroupBy(i => i.ExerciseId)
+            .Select(g => new { ExerciseId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ExerciseId, x => x.Count, token);
+
+        return new ExerciseScoreboardModel
+        {
+            Items = items,
+            ChallengeSolvedCount = challengeSolvedCount
+        };
     }
 }

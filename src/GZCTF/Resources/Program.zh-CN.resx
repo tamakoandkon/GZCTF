@@ -944,6 +944,12 @@
   <data name="Challenge_ContentManagedInPool" xml:space="preserve">
     <value>题目内容在题库中管理</value>
   </data>
+  <data name="PoolChallenge_ReferencedByGames" xml:space="preserve">
+    <value>题目被比赛引用，无法删除</value>
+  </data>
+  <data name="PoolChallenge_AlreadyLinked" xml:space="preserve">
+    <value>该比赛已引用此题目</value>
+  </data>
   <data name="Challenge_UseAssetsApiForDynamic" xml:space="preserve">
     <value>动态附件题目请使用 assets API 上传附件</value>
   </data>

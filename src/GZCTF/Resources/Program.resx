@@ -944,6 +944,12 @@
   <data name="Challenge_ContentManagedInPool" xml:space="preserve">
     <value>Challenge content is managed in the pool</value>
   </data>
+  <data name="PoolChallenge_ReferencedByGames" xml:space="preserve">
+    <value>The challenge is referenced by games and cannot be deleted</value>
+  </data>
+  <data name="PoolChallenge_AlreadyLinked" xml:space="preserve">
+    <value>The challenge is already linked to this game</value>
+  </data>
   <data name="Challenge_UseAssetsApiForDynamic" xml:space="preserve">
     <value>Use assets API to upload attachments</value>
   </data>

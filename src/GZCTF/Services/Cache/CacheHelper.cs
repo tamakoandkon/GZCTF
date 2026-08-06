@@ -73,6 +73,9 @@ public class CacheHelper(
     public async Task FlushRecentGamesCache(CancellationToken token) =>
         await channelWriter.WriteAsync(RecentGamesCacheHandler.MakeCacheRequest(), token);
 
+    public async Task FlushExerciseScoreboardCache(CancellationToken token) =>
+        await RemoveAsync(CacheKey.ExerciseScoreboard, token);
+
     public async Task FlushGameListCache(CancellationToken token) =>
         await channelWriter.WriteAsync(GameListCacheHandler.MakeCacheRequest(), token);
 
@@ -220,6 +223,11 @@ public static class CacheKey
     /// Is exercise available
     /// </summary>
     public const string ExerciseAvailable = "_ExerciseAvailable";
+
+    /// <summary>
+    /// Exercise scoreboard
+    /// </summary>
+    public const string ExerciseScoreboard = "_ExerciseScoreboard";
 
     /// <summary>
     /// The client configuration
