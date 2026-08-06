@@ -48,6 +48,7 @@ import { useTranslation } from 'react-i18next'
 import {
   ChallengeCategory,
   ChallengeType,
+  Difficulty,
   NetworkMode,
   NoticeType,
   ParticipationStatus,
@@ -656,4 +657,14 @@ export const getInputNumber = (value: string | number, float?: boolean): number 
   }
 
   return float ? parseFloat(value) : parseInt(value)
+}
+
+/**
+ * The backend serializes the Difficulty enum as its string name (JsonStringEnumConverter),
+ * while the Api.ts Difficulty is a numeric enum. Normalize either form to the numeric value.
+ */
+export const toDifficultyNumber = (difficulty: unknown): Difficulty => {
+  if (typeof difficulty === 'number') return difficulty as Difficulty
+  if (typeof difficulty === 'string') return (Difficulty as unknown as Record<string, Difficulty>)[difficulty] ?? Difficulty.Normal
+  return Difficulty.Normal
 }

@@ -27,7 +27,14 @@ import { HintList } from '@Components/HintList'
 import { InstanceEntry } from '@Components/InstanceEntry'
 import { SwitchLabel } from '@Components/admin/SwitchLabel'
 import { AdminPage } from '@Components/admin/AdminPage'
-import { getInputNumber, NetworkModeItem, NetworkModeList, showErrorMsg, useNetworkModeMap } from '@Utils/Shared'
+import {
+  getInputNumber,
+  NetworkModeItem,
+  NetworkModeList,
+  showErrorMsg,
+  toDifficultyNumber,
+  useNetworkModeMap,
+} from '@Utils/Shared'
 import {
   ChallengeCategoryItem,
   ChallengeCategoryList,
@@ -69,10 +76,11 @@ const PoolChallengeEdit: FC = () => {
 
   useEffect(() => {
     if (pool) {
-      setPoolInfo({ ...pool })
+      // the backend serializes Difficulty as its string name; normalize to the numeric enum
+      setPoolInfo({ ...pool, difficulty: toDifficultyNumber(pool.difficulty) })
       setCategory(pool.category)
       setNetworkMode(pool.networkMode ?? NetworkMode.Open)
-      setDifficulty(pool.difficulty ?? Difficulty.Normal)
+      setDifficulty(toDifficultyNumber(pool.difficulty))
       setDeadline(pool.deadlineUtc ? dayjs(pool.deadlineUtc) : null)
     }
   }, [pool])

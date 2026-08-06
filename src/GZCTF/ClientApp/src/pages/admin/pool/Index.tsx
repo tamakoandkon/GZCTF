@@ -23,7 +23,7 @@ import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { AdminPage } from '@Components/admin/AdminPage'
-import { showErrorMsg } from '@Utils/Shared'
+import { showErrorMsg, toDifficultyNumber } from '@Utils/Shared'
 import {
   ChallengeCategoryItem,
   ChallengeCategoryList,
@@ -34,8 +34,8 @@ import {
 import { useEditPools } from '@Hooks/useEdit'
 import api, { ChallengeCategory, ChallengeType, Difficulty } from '@Api'
 
-const difficultyLabel = (t: (k: string) => string, difficulty: Difficulty) =>
-  t(`exercise.difficulty.${Difficulty[difficulty ?? Difficulty.Normal]?.toLowerCase() ?? 'normal'}`)
+const difficultyLabel = (t: (k: string) => string, difficulty: Difficulty | string | null | undefined) =>
+  t(`exercise.difficulty.${Difficulty[toDifficultyNumber(difficulty)].toLowerCase()}`)
 
 const PoolIndex: FC = () => {
   const navigate = useNavigate()
