@@ -59,33 +59,38 @@ public class GameChallenge : Challenge
 
     internal void Update(ChallengeUpdateModel model)
     {
-        Title = model.Title ?? Title;
-        Content = model.Content ?? Content;
-        Category = model.Category ?? Category;
-        Hints = model.Hints ?? Hints;
-        CPUCount = model.CPUCount ?? CPUCount;
-        MemoryLimit = model.MemoryLimit ?? MemoryLimit;
-        StorageLimit = model.StorageLimit ?? StorageLimit;
-        ContainerImage = model.ContainerImage?.Trim() ?? ContainerImage;
-        ExposePort = model.ExposePort ?? ExposePort;
-        NetworkMode = model.NetworkMode ?? NetworkMode;
+        // content fields of a linked challenge are managed in the pool, never updated here
+        if (!IsLinked)
+        {
+            Title = model.Title ?? Title;
+            Content = model.Content ?? Content;
+            Category = model.Category ?? Category;
+            Hints = model.Hints ?? Hints;
+            CPUCount = model.CPUCount ?? CPUCount;
+            MemoryLimit = model.MemoryLimit ?? MemoryLimit;
+            StorageLimit = model.StorageLimit ?? StorageLimit;
+            ContainerImage = model.ContainerImage?.Trim() ?? ContainerImage;
+            ExposePort = model.ExposePort ?? ExposePort;
+            NetworkMode = model.NetworkMode ?? NetworkMode;
+            FileName = model.FileName ?? FileName;
+            SubmissionLimit = model.SubmissionLimit ?? SubmissionLimit;
+
+            // only set FlagTemplate to null when pass an empty string (but not null)
+            if (model.FlagTemplate is { } template)
+                FlagTemplate = string.IsNullOrWhiteSpace(template) ? null : template;
+
+            // only set DeadlineUtc to null when pass DateTimeOffset.MinValue (but not null)
+            if (model.DeadlineUtc is { } time)
+                DeadlineUtc = time.ToUnixTimeSeconds() == 0 ? null : time;
+        }
+
         OriginalScore = model.OriginalScore ?? OriginalScore;
         MinScoreRate = model.MinScoreRate ?? MinScoreRate;
         Difficulty = model.Difficulty ?? Difficulty;
-        FileName = model.FileName ?? FileName;
         DisableBloodBonus = model.DisableBloodBonus ?? DisableBloodBonus;
-        SubmissionLimit = model.SubmissionLimit ?? SubmissionLimit;
 
         // isEnabled should be updated alone
         IsEnabled = model.IsEnabled ?? IsEnabled;
-
-        // only set DeadlineUtc to null when pass DateTimeOffset.MinValue (but not null)
-        if (model.DeadlineUtc is { } time)
-            DeadlineUtc = time.ToUnixTimeSeconds() == 0 ? null : time;
-
-        // only set FlagTemplate to null when pass an empty string (but not null)
-        if (model.FlagTemplate is { } template)
-            FlagTemplate = string.IsNullOrWhiteSpace(template) ? null : template;
 
         // Container only
         EnableTrafficCapture = Type.IsContainer() && (model.EnableTrafficCapture ?? EnableTrafficCapture);
@@ -127,6 +132,30 @@ public class GameChallenge : Challenge
     /// Game object
     /// </summary>
     public Game Game { get; set; } = null!;
+
+    /// <summary>
+    /// Pool challenge ID, null means a standalone challenge
+    /// </summary>
+    public int? PoolChallengeId { get; set; }
+
+    /// <summary>
+    /// Reference to the pool challenge, content is shared when linked
+    /// </summary>
+    public PoolChallenge? PoolChallenge { get; set; }
+
+    /// <summary>
+    /// Whether this challenge is linked to a pool challenge
+    /// </summary>
+    [NotMapped]
+    public bool IsLinked => PoolChallengeId is not null;
+
+    /// <summary>
+    /// Effective content source. Linked challenges read content fields from the pool;
+    /// per-game config fields (OriginalScore, MinScoreRate, Difficulty, DisableBloodBonus,
+    /// EnableTrafficCapture, IsEnabled) are always read from the GameChallenge itself.
+    /// </summary>
+    [NotMapped]
+    internal Challenge EffectiveContent => PoolChallenge ?? (Challenge)this;
 
     #endregion Db Relationship
 }

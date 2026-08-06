@@ -142,6 +142,19 @@ public class Challenge
     }
 
     /// <summary>
+    /// Generate dynamic flag for a range user, [TEAM_HASH] is derived from the user
+    /// </summary>
+    internal string GenerateDynamicFlagForUser(Guid userId)
+    {
+        if (string.IsNullOrEmpty(FlagTemplate))
+            return $"flag{Guid.NewGuid():B}";
+
+        var generator = new DynamicFlagGenerator(FlagTemplate);
+
+        return generator.GenerateWithTeamHash(() => $"{Id}::{userId}".ToSHA256String()[..12]);
+    }
+
+    /// <summary>
     /// Generate test flag for admin to check the challenge
     /// </summary>
     internal string GenerateTestFlag()

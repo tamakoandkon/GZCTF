@@ -36,9 +36,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
     public DbSet<GameChallenge> GameChallenges { get; set; } = null!;
     public DbSet<FirstSolve> FirstSolves { get; set; } = null!;
     public DbSet<ExerciseInstance> ExerciseInstances { get; set; } = null!;
-    public DbSet<ExerciseChallenge> ExerciseChallenges { get; set; } = null!;
+    public DbSet<PoolChallenge> PoolChallenges { get; set; } = null!;
+    public DbSet<ExerciseSubmission> ExerciseSubmissions { get; set; } = null!;
     public DbSet<UserParticipation> UserParticipations { get; set; } = null!;
-    public DbSet<ExerciseDependency> ExerciseDependencies { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
     public DbSet<ApiToken> ApiTokens { get; set; } = null!;
 
@@ -279,6 +279,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
             entity.HasMany(e => e.DivisionConfigs)
                 .WithOne(e => e.Challenge)
                 .HasForeignKey(e => e.ChallengeId);
+
+            entity.HasOne(e => e.PoolChallenge)
+                .WithMany(e => e.ReferencingGames)
+                .HasForeignKey(e => e.PoolChallengeId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<Division>(entity =>
@@ -288,7 +293,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
                 .HasForeignKey(e => e.DivisionId);
         });
 
-        builder.Entity<ExerciseChallenge>(entity =>
+        builder.Entity<PoolChallenge>(entity =>
         {
             entity.Property(e => e.Hints)
                 .HasConversion(listConverter)
@@ -310,23 +315,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
                 .SetValueComparer(listComparer);
 
             entity.HasMany(e => e.Flags)
-                .WithOne(e => e.Exercise)
-                .HasForeignKey(e => e.ExerciseId);
+                .WithOne(e => e.PoolChallenge)
+                .HasForeignKey(e => e.PoolChallengeId);
 
             entity.HasOne(e => e.TestContainer)
                 .WithMany()
                 .HasForeignKey(e => e.TestContainerId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasMany(e => e.Dependencies)
-                .WithMany()
-                .UsingEntity<ExerciseDependency>(
-                    l => l.HasOne(e => e.Target).WithMany().HasForeignKey(e => e.TargetId),
-                    r => r.HasOne(e => e.Source).WithMany().HasForeignKey(e => e.SourceId)
-                );
-
             entity.Navigation(e => e.Attachment).AutoInclude();
             entity.Navigation(e => e.TestContainer).AutoInclude();
+
+            entity.HasIndex(e => e.RangeEnabled);
+        });
+
+        builder.Entity<ExerciseSubmission>(entity =>
+        {
+            entity.Property(e => e.Status).HasConversion<string>();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId);
+
+            entity.HasOne(e => e.Exercise)
+                .WithMany(e => e.ExerciseSubmissions)
+                .HasForeignKey(e => e.ExerciseId);
         });
 
         builder.Entity<Submission>(entity =>

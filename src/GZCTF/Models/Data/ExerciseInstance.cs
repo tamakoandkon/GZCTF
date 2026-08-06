@@ -42,15 +42,15 @@ public class ExerciseInstance : Instance
     public UserInfo User { get; set; } = null!;
 
     /// <summary>
-    /// Exercise ID
+    /// Pool challenge ID
     /// </summary>
     [Required]
     public int ExerciseId { get; set; }
 
     /// <summary>
-    /// Exercise object
+    /// Pool challenge object
     /// </summary>
-    public ExerciseChallenge Exercise { get; set; } = null!;
+    public PoolChallenge Exercise { get; set; } = null!;
 
     #endregion
 }
