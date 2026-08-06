@@ -46,6 +46,10 @@ public class ExerciseInstanceRepository(
 
         instance ??= new ExerciseInstance { ExerciseId = exerciseId, UserId = user.Id, IsLoaded = false };
 
+        // newly created instances have no loaded Exercise navigation; bind the loaded
+        // challenge so callers (detail model / verify / container ops) can read it
+        instance.Exercise = challenge;
+
         try
         {
             // dynamic flag dispatch
