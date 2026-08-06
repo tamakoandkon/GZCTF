@@ -17,9 +17,9 @@ import {
 import { useInputState } from '@mantine/hooks'
 import { useModals } from '@mantine/modals'
 import { showNotification } from '@mantine/notifications'
-import { mdiCheck, mdiDatabaseOutline, mdiDeleteOutline, mdiPencilOutline, mdiPlus } from '@mdi/js'
+import { mdiArrowDown, mdiArrowUp, mdiCheck, mdiDatabaseOutline, mdiDeleteOutline, mdiPencilOutline, mdiPlus } from '@mdi/js'
 import { Icon } from '@mdi/react'
-import { FC, useState } from 'react'
+import { FC, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { AdminPage } from '@Components/admin/AdminPage'
@@ -37,6 +37,23 @@ import api, { ChallengeCategory, ChallengeType, Difficulty } from '@Api'
 const difficultyLabel = (t: (k: string) => string, difficulty: Difficulty | string | null | undefined) =>
   t(`exercise.difficulty.${Difficulty[toDifficultyNumber(difficulty)].toLowerCase()}`)
 
+type SortKey = 'title' | 'category' | 'type' | 'difficulty' | 'rangeScore' | 'referencedGamesCount'
+
+const SortableTh: FC<{
+  label: string
+  sortKey: SortKey
+  current: SortKey | null
+  order: 'asc' | 'desc'
+  onSort: (key: SortKey) => void
+}> = ({ label, sortKey, current, order, onSort }) => (
+  <Table.Th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => onSort(sortKey)}>
+    <Group gap={4} wrap="nowrap">
+      <Text size="sm">{label}</Text>
+      {current === sortKey && <Icon path={order === 'asc' ? mdiArrowUp : mdiArrowDown} size={0.7} />}
+    </Group>
+  </Table.Th>
+)
+
 const PoolIndex: FC = () => {
   const navigate = useNavigate()
   const { t } = useTranslation()
@@ -52,6 +69,56 @@ const PoolIndex: FC = () => {
   const [type, setType] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<number>(Difficulty.Normal)
   const [disabled, setDisabled] = useState(false)
+
+  // list filter + sort
+  const [typeFilter, setTypeFilter] = useState<ChallengeType | null>(null)
+  const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  const onSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortOrder('asc')
+    }
+  }
+
+  const filteredPools = useMemo(() => {
+    let list = (pools ?? []).filter(
+      (p) =>
+        (!typeFilter || p.type === typeFilter) &&
+        (!search || (p.title ?? '').toLowerCase().includes(search.toLowerCase()))
+    )
+    if (sortKey) {
+      list = [...list].sort((a, b) => {
+        let cmp = 0
+        switch (sortKey) {
+          case 'title':
+            cmp = (a.title ?? '').localeCompare(b.title ?? '')
+            break
+          case 'category':
+            cmp = (a.category ?? '').localeCompare(b.category ?? '')
+            break
+          case 'type':
+            cmp = (a.type ?? '').localeCompare(b.type ?? '')
+            break
+          case 'difficulty':
+            cmp = toDifficultyNumber(a.difficulty) - toDifficultyNumber(b.difficulty)
+            break
+          case 'rangeScore':
+            cmp = (a.rangeScore ?? 0) - (b.rangeScore ?? 0)
+            break
+          case 'referencedGamesCount':
+            cmp = (a.referencedGamesCount ?? 0) - (b.referencedGamesCount ?? 0)
+            break
+        }
+        return sortOrder === 'asc' ? cmp : -cmp
+      })
+    }
+    return list
+  }, [pools, typeFilter, search, sortKey, sortOrder])
 
   const difficultyData = Object.values(Difficulty)
     .filter((v) => typeof v === 'number')
@@ -123,8 +190,30 @@ const PoolIndex: FC = () => {
       isLoading={!pools}
       headProps={{ justify: 'space-between' }}
       head={
-        <Group justify="space-between" w="100%">
-          <Title order={2}>{t('admin.content.pool.title')}</Title>
+        <Group justify="space-between" w="100%" wrap="nowrap">
+          <Group gap="md" wrap="nowrap">
+            <Title order={2}>{t('admin.content.pool.title')}</Title>
+            <TextInput
+              placeholder={t('admin.content.games.challenges.title')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              w="12rem"
+            />
+            <Select
+              placeholder={t('admin.content.show_all')}
+              clearable
+              searchable
+              w="12rem"
+              value={typeFilter}
+              nothingFoundMessage={t('admin.content.nothing_found')}
+              onChange={(value) => setTypeFilter(value as ChallengeType | null)}
+              renderOption={ChallengeTypeItem}
+              data={Object.entries(ChallengeType).map((type) => {
+                const data = challengeTypeLabelMap.get(type[1])
+                return { value: type[1], label: data?.name, ...data } as ComboboxItem
+              })}
+            />
+          </Group>
           <Button mr="18px" leftSection={<Icon path={mdiPlus} size={1} />} onClick={() => setCreateOpened(true)}>
             {t('admin.button.pool.new')}
           </Button>
@@ -139,22 +228,66 @@ const PoolIndex: FC = () => {
             <Text>{t('admin.content.pool.empty.description')}</Text>
           </Stack>
         </Center>
+      ) : filteredPools.length === 0 ? (
+        <Center h="calc(100vh - 200px)">
+          <Stack gap={0} align="center">
+            <Icon path={mdiDatabaseOutline} size={4} color="gray" />
+            <Title order={3}>{t('admin.content.show_all')}</Title>
+            <Text>{t('admin.content.nothing_found')}</Text>
+          </Stack>
+        </Center>
       ) : (
         <Table highlightOnHover verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>{t('admin.content.games.challenges.title')}</Table.Th>
-              <Table.Th>{t('admin.content.games.challenges.category')}</Table.Th>
-              <Table.Th>{t('admin.content.games.challenges.type.label')}</Table.Th>
-              <Table.Th>{t('admin.content.pool.difficulty')}</Table.Th>
+              <SortableTh
+                label={t('admin.content.games.challenges.title')}
+                sortKey="title"
+                current={sortKey}
+                order={sortOrder}
+                onSort={onSort}
+              />
+              <SortableTh
+                label={t('admin.content.games.challenges.category')}
+                sortKey="category"
+                current={sortKey}
+                order={sortOrder}
+                onSort={onSort}
+              />
+              <SortableTh
+                label={t('admin.content.games.challenges.type.label')}
+                sortKey="type"
+                current={sortKey}
+                order={sortOrder}
+                onSort={onSort}
+              />
+              <SortableTh
+                label={t('admin.content.pool.difficulty')}
+                sortKey="difficulty"
+                current={sortKey}
+                order={sortOrder}
+                onSort={onSort}
+              />
               <Table.Th>{t('admin.content.pool.range.enabled')}</Table.Th>
-              <Table.Th>{t('admin.content.pool.range.score')}</Table.Th>
-              <Table.Th>{t('admin.content.pool.referenced_games')}</Table.Th>
+              <SortableTh
+                label={t('admin.content.pool.range.score')}
+                sortKey="rangeScore"
+                current={sortKey}
+                order={sortOrder}
+                onSort={onSort}
+              />
+              <SortableTh
+                label={t('admin.content.pool.referenced_games')}
+                sortKey="referencedGamesCount"
+                current={sortKey}
+                order={sortOrder}
+                onSort={onSort}
+              />
               <Table.Th />
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {pools.map((pool) => {
+            {filteredPools.map((pool) => {
               const cateData = challengeCategoryLabelMap.get(pool.category)
               const typeData = challengeTypeLabelMap.get(pool.type)
               return (

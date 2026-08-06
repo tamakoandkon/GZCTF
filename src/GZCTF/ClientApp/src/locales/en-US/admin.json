@@ -446,7 +446,7 @@
       "stats": "<1>{{current}}</1> out of <1>{{total}}</1> users displayed"
     },
     "pool": {
-      "title": "Pool",
+      "title": "Pool Management",
       "empty": {
         "title": "No challenges in the pool yet",
         "description": "Click the top-right button to create the first challenge"
@@ -640,7 +640,7 @@
     },
     "instances": "Instances",
     "logs": "Logs",
-    "pool": "Pool",
+    "pool": "Pool Management",
     "settings": "Settings",
     "teams": "Teams",
     "users": "Users"

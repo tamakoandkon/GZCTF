@@ -640,7 +640,7 @@
     },
     "instances": "实例管理",
     "logs": "系统日志",
-    "pool": "题库",
+    "pool": "题库管理",
     "settings": "系统设置",
     "teams": "队伍管理",
     "users": "用户管理"
