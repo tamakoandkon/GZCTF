@@ -688,7 +688,8 @@ public class EditController(
         var content = res.EffectiveContent;
 
         // Content fields of a linked challenge are managed in the pool; reject only when a
-        // content field would actually change its value (clients may submit the full model)
+        // content field would actually change its value (clients may submit the full model).
+        // Note: the client sends unix 0 to represent "no deadline", normalize it before comparing.
         if (res.IsLinked && (model.Title is not null && model.Title != content.Title ||
                              model.Content is not null && model.Content != content.Content ||
                              model.Category is not null && model.Category != content.Category ||
@@ -701,7 +702,10 @@ public class EditController(
                              model.NetworkMode is not null && model.NetworkMode != content.NetworkMode ||
                              model.FileName is not null && model.FileName != content.FileName ||
                              model.SubmissionLimit is not null && model.SubmissionLimit != content.SubmissionLimit ||
-                             model.FlagTemplate is not null && model.FlagTemplate != content.FlagTemplate))
+                             model.FlagTemplate is not null && model.FlagTemplate != content.FlagTemplate ||
+                             model.DeadlineUtc is { } deadline &&
+                             (deadline.ToUnixTimeSeconds() == 0 ? (DateTimeOffset?)null : deadline) !=
+                             content.DeadlineUtc))
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Challenge_ContentManagedInPool)]));
 
