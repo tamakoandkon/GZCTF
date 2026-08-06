@@ -30,9 +30,9 @@ type Maintainer = { name: string; abbr: string; github?: string }
 const maintainers: Maintainer[] = [
   { name: '铸剑网络安全实验室', abbr: '铸' },
   { name: 'tamako', abbr: 'T', github: 'tamakoandkon' },
-  { name: 'xingu', abbr: 'X' },
-  { name: 'yzqzss', abbr: 'Y' },
-  { name: 'Dekul', abbr: 'D' },
+  { name: 'xingu', abbr: 'X', github: 'cbkyami' },
+  { name: 'yzqzss', abbr: 'Y', github: 'yzqzss' },
+  { name: 'Dekul', abbr: 'D', github: 'Dekul1' },
 ]
 
 const About: FC = () => {
