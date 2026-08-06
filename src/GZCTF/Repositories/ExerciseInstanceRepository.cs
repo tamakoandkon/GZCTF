@@ -44,7 +44,13 @@ public class ExerciseInstanceRepository(
             return null;
         }
 
+        var isNewInstance = instance is null;
         instance ??= new ExerciseInstance { ExerciseId = exerciseId, UserId = user.Id, IsLoaded = false };
+
+        // a brand-new instance must be tracked explicitly, otherwise SaveAsync does not
+        // insert it (navigation fixup does not reliably mark it as Added here)
+        if (isNewInstance)
+            Context.ExerciseInstances.Add(instance);
 
         // newly created instances have no loaded Exercise navigation; bind the loaded
         // challenge so callers (detail model / verify / container ops) can read it
