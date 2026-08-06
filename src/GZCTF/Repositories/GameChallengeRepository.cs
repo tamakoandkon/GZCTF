@@ -52,6 +52,7 @@ public class GameChallengeRepository(
 
     public Task<GameChallenge?> GetChallenge(int gameId, int id, CancellationToken token = default)
         => Context.GameChallenges
+            .Include(c => c.PoolChallenge)
             .Where(c => c.Id == id && c.GameId == gameId).FirstOrDefaultAsync(token);
 
     public Task<GameChallenge?> GetChallengeByPoolId(int gameId, int poolChallengeId, CancellationToken token = default) =>
@@ -64,6 +65,7 @@ public class GameChallengeRepository(
 
     public Task<GameChallenge[]> GetChallenges(int gameId, CancellationToken token = default) =>
         Context.GameChallenges
+            .Include(c => c.PoolChallenge)
             .Where(c => c.GameId == gameId).OrderBy(c => c.Id).ToArrayAsync(token);
 
     public Task<GameChallenge[]> GetChallengesWithTrafficCapturing(int gameId, CancellationToken token = default) =>

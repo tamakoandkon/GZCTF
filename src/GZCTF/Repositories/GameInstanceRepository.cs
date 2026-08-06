@@ -23,6 +23,8 @@ public class GameInstanceRepository(
 
         var instance = await Context.GameInstances
             .Include(i => i.FlagContext)
+            .Include(i => i.Challenge)
+            .ThenInclude(c => c.PoolChallenge)
             .Where(e => e.ChallengeId == challengeId && e.Participation == part)
             .SingleOrDefaultAsync(token);
 
@@ -52,27 +54,34 @@ public class GameInstanceRepository(
 
         try
         {
-            switch (instance.Challenge.Type)
+            var content = challenge.EffectiveContent;
+
+            switch (content.Type)
             {
                 // dynamic flag dispatch
                 case ChallengeType.DynamicContainer:
                     instance.FlagContext = new()
                     {
                         Challenge = challenge,
-                        Flag = challenge.GenerateDynamicFlag(part),
+                        Flag = content.GenerateDynamicFlag(part),
                         IsOccupied = true
                     };
                     break;
                 case ChallengeType.DynamicAttachment:
-                    var flags = await Context.FlagContexts
-                        .Where(e => e.Challenge == challenge && !e.IsOccupied)
-                        .ToListAsync(token);
+                    // linked challenges store flags against the pool challenge
+                    var flags = challenge.IsLinked
+                        ? await Context.FlagContexts
+                            .Where(e => e.PoolChallengeId == challenge.PoolChallengeId && !e.IsOccupied)
+                            .ToListAsync(token)
+                        : await Context.FlagContexts
+                            .Where(e => e.Challenge == challenge && !e.IsOccupied)
+                            .ToListAsync(token);
 
                     if (flags.Count == 0)
                     {
                         logger.SystemLog(
                             StaticLocalizer[nameof(Resources.Program.InstanceRepository_DynamicFlagsNotEnough),
-                                challenge.Title,
+                                content.Title,
                                 challenge.Id], TaskStatus.Failed,
                             LogLevel.Warning);
                         return null;
@@ -96,7 +105,7 @@ public class GameInstanceRepository(
         {
             logger.SystemLog(
                 StaticLocalizer[nameof(Resources.Program.InstanceRepository_GetInstanceFailed), part.Team.Name,
-                    challenge.Title,
+                    challenge.EffectiveContent.Title,
                     challenge.Id],
                 TaskStatus.Failed, LogLevel.Warning);
             await transaction.RollbackAsync(token);
@@ -110,18 +119,21 @@ public class GameInstanceRepository(
         CancellationToken token = default)
         => Context.GameInstances.IgnoreAutoIncludes()
             .Include(i => i.Challenge)
+            .ThenInclude(c => c.PoolChallenge)
             .Where(i => i.ParticipationId == team.Id && i.ChallengeId == challengeId)
             .SingleOrDefaultAsync(token);
 
     public async Task<TaskResult<Container>> CreateContainer(GameInstance gameInstance, Team team, UserInfo user,
         Game game, CancellationToken token = default)
     {
-        if (string.IsNullOrEmpty(gameInstance.Challenge.ContainerImage) ||
-            gameInstance.Challenge.ExposePort is null)
+        var content = gameInstance.Challenge.EffectiveContent;
+
+        if (string.IsNullOrEmpty(content.ContainerImage) ||
+            content.ExposePort is null)
         {
             logger.SystemLog(
                 StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreationFailed),
-                    gameInstance.Challenge.Title],
+                    content.Title],
                 TaskStatus.Denied, LogLevel.Warning);
             return new TaskResult<Container>(TaskStatus.Failed);
         }
@@ -170,13 +182,13 @@ public class GameInstanceRepository(
             ChallengeId = gameInstance.ChallengeId,
             GameId = challenge.GameId,
             Flag = gameInstance.FlagContext?.Flag, // static challenge has no specific flag
-            Image = challenge.ContainerImage,
-            CPUCount = challenge.CPUCount ?? 1,
-            MemoryLimit = challenge.MemoryLimit ?? 64,
-            StorageLimit = challenge.StorageLimit ?? 256,
-            NetworkMode = challenge.NetworkMode ?? NetworkMode.Open,
+            Image = content.ContainerImage,
+            CPUCount = content.CPUCount ?? 1,
+            MemoryLimit = content.MemoryLimit ?? 64,
+            StorageLimit = content.StorageLimit ?? 256,
+            NetworkMode = content.NetworkMode ?? NetworkMode.Open,
             EnableTrafficCapture = challenge.EnableTrafficCapture && game.IsActive,
-            ExposedPort = challenge.ExposePort ??
+            ExposedPort = content.ExposePort ??
                           throw new ArgumentException(
                               localizer[nameof(Resources.Program.InstanceRepository_InvalidPort)])
         }, token);
@@ -185,7 +197,7 @@ public class GameInstanceRepository(
         {
             logger.SystemLog(
                 StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreationFailed),
-                    gameInstance.Challenge.Title],
+                    content.Title],
                 TaskStatus.Failed, LogLevel.Warning);
             return new TaskResult<Container>(TaskStatus.Failed);
         }
@@ -203,12 +215,12 @@ public class GameInstanceRepository(
                 GameId = gameInstance.Challenge.GameId,
                 TeamId = gameInstance.Participation.TeamId,
                 UserId = user.Id,
-                Values = [gameInstance.Challenge.Id.ToString(), gameInstance.Challenge.Title]
+                Values = [gameInstance.Challenge.Id.ToString(), content.Title]
             }, token);
 
         logger.Log(
             StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreated), team.Name,
-                gameInstance.Challenge.Title,
+                content.Title,
                 container.LogId], user,
             TaskStatus.Success);
 
@@ -283,14 +295,21 @@ public class GameInstanceRepository(
 
             var challenge = await Context.GameChallenges
                 .AsNoTracking()
-                .Select(c => new { c.Id, c.Type, c.DisableBloodBonus, c.DeadlineUtc })
+                .IgnoreAutoIncludes()
+                .Include(c => c.PoolChallenge)
                 .SingleAsync(c => c.Id == submission.ChallengeId, token);
 
-            if (instance.FlagContext is null && challenge.Type.IsStatic())
+            var content = challenge.EffectiveContent;
+
+            if (instance.FlagContext is null && content.Type.IsStatic())
             {
+                // linked challenges store static flags against the pool challenge
                 updateSub.Status = await Context.FlagContexts.AsNoTracking()
                     .AnyAsync(
-                        f => f.ChallengeId == submission.ChallengeId && f.Flag == submission.Answer,
+                        f => f.Flag == submission.Answer &&
+                             (f.ChallengeId == submission.ChallengeId ||
+                              (challenge.PoolChallengeId != null &&
+                               f.PoolChallengeId == challenge.PoolChallengeId)),
                         token)
                     ? AnswerResult.Accepted
                     : AnswerResult.WrongAnswer;
@@ -345,8 +364,8 @@ public class GameInstanceRepository(
                                    updateSub.SubmitTimeUtc < time.EndTimeUtc;
 
             // Check if submission is within challenge deadline (if deadline is set)
-            var withinDeadline = !challenge.DeadlineUtc.HasValue ||
-                                 updateSub.SubmitTimeUtc <= challenge.DeadlineUtc.Value;
+            var withinDeadline = !content.DeadlineUtc.HasValue ||
+                                 updateSub.SubmitTimeUtc <= content.DeadlineUtc.Value;
 
             // Blood bonus is only awarded if submission is within both game window and deadline
             var hasBloodPermission = withinGameWindow && withinDeadline && !challenge.DisableBloodBonus &&

@@ -66,13 +66,18 @@ public static class TransferExtensions
         /// </summary>
         public TransferChallenge ToTransfer()
         {
+            // Linked challenges export a snapshot of the pool content; per-game scoring
+            // configuration always comes from the GameChallenge itself.
+            var content = challenge.EffectiveContent;
+
             var transfer = new TransferChallenge
             {
                 Id = challenge.Id,
-                Title = challenge.Title,
-                Content = challenge.Content,
-                Category = challenge.Category,
-                Type = challenge.Type,
+                PoolChallengeId = challenge.PoolChallengeId,
+                Title = content.Title,
+                Content = content.Content,
+                Category = content.Category,
+                Type = content.Type,
                 Enabled = challenge.IsEnabled,
                 Scoring = new ScoringSection
                 {
@@ -80,46 +85,47 @@ public static class TransferExtensions
                     MinRate = challenge.MinScoreRate,
                     Difficulty = challenge.Difficulty
                 },
-                Limits = new LimitsSection { Submission = challenge.SubmissionLimit, Deadline = challenge.DeadlineUtc },
+                Limits = new LimitsSection { Submission = content.SubmissionLimit, Deadline = content.DeadlineUtc },
                 Flags = new FlagsSection
                 {
-                    Template = challenge.FlagTemplate,
+                    Template = content.FlagTemplate,
                     DisableBloodBonus = challenge.DisableBloodBonus,
                     EnableTrafficCapture = challenge.EnableTrafficCapture,
                     // For dynamic challenges with FlagTemplate, don't export the template flag to Static list
-                    // to avoid duplication during import
+                    // to avoid duplication during import. Note: linked challenge flags live on the pool
+                    // and are not duplicated in the game package.
                     Static = challenge.Flags
-                        .Where(f => string.IsNullOrWhiteSpace(challenge.FlagTemplate) ||
-                                    f.Flag != challenge.FlagTemplate)
+                        .Where(f => string.IsNullOrWhiteSpace(content.FlagTemplate) ||
+                                    f.Flag != content.FlagTemplate)
                         .Select(f => new StaticFlagSection { Value = f.Flag, Attachment = f.Attachment?.ToTransfer() })
                         .ToList()
                 }
             };
 
             // Hints
-            if (challenge.Hints?.Count > 0)
+            if (content.Hints?.Count > 0)
             {
-                transfer.Hints = challenge.Hints;
+                transfer.Hints = content.Hints;
             }
 
             // Attachment
-            if (challenge.Attachment != null)
+            if (content.Attachment != null)
             {
-                transfer.Attachment = challenge.Attachment.ToTransfer();
+                transfer.Attachment = content.Attachment.ToTransfer();
             }
 
             // Container configuration (only for container challenges)
-            if (challenge.Type.IsContainer())
+            if (content.Type.IsContainer())
             {
                 transfer.Container = new ContainerSection
                 {
-                    Image = challenge.ContainerImage ?? string.Empty,
-                    MemoryLimit = challenge.MemoryLimit ?? 64,
-                    CpuCount = challenge.CPUCount ?? 1,
-                    StorageLimit = challenge.StorageLimit ?? 256,
-                    ExposePort = challenge.ExposePort ?? 80,
-                    FileName = challenge.FileName,
-                    NetworkMode = challenge.NetworkMode ?? NetworkMode.Open
+                    Image = content.ContainerImage ?? string.Empty,
+                    MemoryLimit = content.MemoryLimit ?? 64,
+                    CpuCount = content.CPUCount ?? 1,
+                    StorageLimit = content.StorageLimit ?? 256,
+                    ExposePort = content.ExposePort ?? 80,
+                    FileName = content.FileName,
+                    NetworkMode = content.NetworkMode ?? NetworkMode.Open
                 };
             }
 

@@ -13,6 +13,12 @@ public class TransferChallenge : IValidatableObject
     public int Id { get; set; }
 
     /// <summary>
+    /// Pool challenge ID, null means a standalone challenge. Linked challenges export a
+    /// snapshot of the pool content, but remain standalone after import.
+    /// </summary>
+    public int? PoolChallengeId { get; set; }
+
+    /// <summary>
     /// Challenge title
     /// </summary>
     [Required(ErrorMessage = "Challenge title is required")]

@@ -941,6 +941,9 @@
   <data name="Challenge_NoFlag" xml:space="preserve">
     <value>The challenge has no flag and cannot be enabled</value>
   </data>
+  <data name="Challenge_ContentManagedInPool" xml:space="preserve">
+    <value>Challenge content is managed in the pool</value>
+  </data>
   <data name="Challenge_UseAssetsApiForDynamic" xml:space="preserve">
     <value>Use assets API to upload attachments</value>
   </data>

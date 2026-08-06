@@ -640,7 +640,7 @@ public class EditController(
                 StatusCodes.Status404NotFound));
 
         // Do not load flags for dynamic containers
-        if (challenge.Type != ChallengeType.DynamicContainer)
+        if (challenge.EffectiveContent.Type != ChallengeType.DynamicContainer)
             await challengeRepository.LoadFlags(challenge, token);
 
         var result = ChallengeEditDetailModel.FromChallenge(challenge);
@@ -683,8 +683,20 @@ public class EditController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
 
+        var content = res.EffectiveContent;
+
+        // Content fields of a linked challenge are managed in the pool
+        if (res.IsLinked && (model.Title is not null || model.Content is not null || model.Category is not null ||
+                             model.Hints is not null || model.CPUCount is not null || model.MemoryLimit is not null ||
+                             model.StorageLimit is not null || model.ContainerImage is not null ||
+                             model.ExposePort is not null || model.NetworkMode is not null || model.FileName is not null ||
+                             model.SubmissionLimit is not null || model.FlagTemplate is not null ||
+                             model.DeadlineUtc is not null))
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Challenge_ContentManagedInPool)]));
+
         // NOTE: IsEnabled can only be updated outside the edit page
-        if (model.IsEnabled is true && !res.IsEnabled && res.Type != ChallengeType.DynamicContainer)
+        if (model.IsEnabled is true && !res.IsEnabled && !res.IsLinked && content.Type != ChallengeType.DynamicContainer)
         {
             await challengeRepository.LoadFlags(res, token);
 
@@ -692,16 +704,16 @@ public class EditController(
                 return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NoFlag)]));
         }
 
-        if (model.EnableTrafficCapture is true && !res.Type.IsContainer())
+        if (model.EnableTrafficCapture is true && !content.Type.IsContainer())
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_CaptureNotAllowed)]));
 
         if (model.FileName is not null && string.IsNullOrWhiteSpace(model.FileName))
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Challenge_DynamicAssetsNotNullable)]));
 
-        var hintUpdated = model.IsHintUpdated(res.Hints?.GetSetHashCode());
+        var hintUpdated = model.IsHintUpdated(content.Hints?.GetSetHashCode());
 
-        if (!string.IsNullOrWhiteSpace(model.FlagTemplate) && res.Type == ChallengeType.DynamicContainer &&
+        if (!string.IsNullOrWhiteSpace(model.FlagTemplate) && content.Type == ChallengeType.DynamicContainer &&
             !model.IsValidFlagTemplate())
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_FlagTooTrivial)]));
 
@@ -716,10 +728,10 @@ public class EditController(
 
                     if (game.IsActive)
                         await gameNoticeRepository.AddNotice(
-                            new() { Game = game, Type = NoticeType.NewChallenge, Values = [res.Title] }, token);
+                            new() { Game = game, Type = NoticeType.NewChallenge, Values = [content.Title] }, token);
                     break;
                 }
-            case false when res.Type.IsContainer():
+            case false when content.Type.IsContainer():
                 await instanceRepository.DestroyAllContainers(res, token);
                 break;
             case null:
@@ -764,11 +776,13 @@ public class EditController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (!challenge.Type.IsContainer())
+        var content = challenge.EffectiveContent;
+
+        if (!content.Type.IsContainer())
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationNotAllowed)]));
 
-        if (challenge.ContainerImage is null || challenge.ExposePort is null)
+        if (content.ContainerImage is null || content.ExposePort is null)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Container_ConfigError)]));
 
         var user = await userManager.GetUserAsync(User);
@@ -780,13 +794,13 @@ public class EditController(
                 UserId = user!.Id,
                 ChallengeId = challenge.Id,
                 GameId = challenge.GameId,
-                Flag = challenge.Type.IsDynamic() ? challenge.GenerateTestFlag() : null,
-                Image = challenge.ContainerImage,
-                CPUCount = challenge.CPUCount ?? 1,
-                MemoryLimit = challenge.MemoryLimit ?? 64,
-                StorageLimit = challenge.StorageLimit ?? 256,
-                NetworkMode = challenge.NetworkMode ?? NetworkMode.Open,
-                ExposedPort = challenge.ExposePort.Value,
+                Flag = content.Type.IsDynamic() ? content.GenerateTestFlag() : null,
+                Image = content.ContainerImage,
+                CPUCount = content.CPUCount ?? 1,
+                MemoryLimit = content.MemoryLimit ?? 64,
+                StorageLimit = content.StorageLimit ?? 256,
+                NetworkMode = content.NetworkMode ?? NetworkMode.Open,
+                ExposedPort = content.ExposePort.Value,
             }, token);
 
         if (container is null)
@@ -886,7 +900,11 @@ public class EditController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (challenge.Type == ChallengeType.DynamicAttachment)
+        if (challenge.IsLinked)
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Challenge_ContentManagedInPool)]));
+
+        if (challenge.EffectiveContent.Type == ChallengeType.DynamicAttachment)
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Challenge_UseAssetsApiForDynamic)]));
 
@@ -918,6 +936,10 @@ public class EditController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
 
+        if (challenge.IsLinked)
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Challenge_ContentManagedInPool)]));
+
         await challengeRepository.AddFlags(challenge, models, token);
 
         return Ok();
@@ -945,6 +967,10 @@ public class EditController(
         if (challenge is null)
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
+
+        if (challenge.IsLinked)
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Challenge_ContentManagedInPool)]));
 
         return Ok(await challengeRepository.RemoveFlag(challenge, fId, token));
     }
