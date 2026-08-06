@@ -1,9 +1,12 @@
+using MemoryPack;
+
 namespace GZCTF.Models.Request.Exercise;
 
 /// <summary>
 /// Exercise scoreboard
 /// </summary>
-public class ExerciseScoreboardModel
+[MemoryPackable]
+public partial class ExerciseScoreboardModel
 {
     /// <summary>
     /// Ranked items
@@ -19,7 +22,8 @@ public class ExerciseScoreboardModel
 /// <summary>
 /// A single scoreboard entry
 /// </summary>
-public class ExerciseScoreboardItem
+[MemoryPackable]
+public partial class ExerciseScoreboardItem
 {
     /// <summary>
     /// Rank
