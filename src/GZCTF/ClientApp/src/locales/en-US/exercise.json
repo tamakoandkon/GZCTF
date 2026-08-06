@@ -1,0 +1,37 @@
+{
+  "title": "Training",
+  "empty": "No challenges available in the training range",
+  "tab": {
+    "all": "All"
+  },
+  "button": {
+    "hide_solved": "Hide solved",
+    "show_solved": "Show solved",
+    "scoreboard": "Scoreboard",
+    "challenges": "Challenges"
+  },
+  "card": {
+    "accepted_count": "{{count}} solves",
+    "submissions": "{{count}} submissions",
+    "solved": "Solved"
+  },
+  "difficulty": {
+    "baby": "Baby",
+    "trivial": "Trivial",
+    "easy": "Easy",
+    "normal": "Normal",
+    "medium": "Medium",
+    "hard": "Hard",
+    "expert": "Expert",
+    "insane": "Insane"
+  },
+  "scoreboard": {
+    "title": "Training Scoreboard",
+    "rank": "Rank",
+    "user": "User",
+    "score": "Score",
+    "solved_count": "Solved",
+    "last_solve_time": "Last Solve",
+    "empty": "No scoreboard data yet"
+  }
+}

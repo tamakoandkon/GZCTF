@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Center,
   Chip,
@@ -506,7 +507,19 @@ const GameChallengeEdit: FC = () => {
         </>
       }
     >
-      {challenge && challenge.type === ChallengeType.DynamicAttachment ? (
+      {challenge?.isLinked ? (
+        <Group
+          gap="xs"
+          wrap="nowrap"
+          p="sm"
+          style={{ borderRadius: 8, backgroundColor: 'var(--mantine-color-teal-light)' }}
+        >
+          <Badge color="teal" size="sm" variant="light">
+            {t('admin.content.pool.linked_badge')}
+          </Badge>
+          <Text size="sm">{t('admin.content.pool.linked_hint')}</Text>
+        </Group>
+      ) : challenge && challenge.type === ChallengeType.DynamicAttachment ? (
         <FlagsWithAttachments onDelete={onDeleteFlag} />
       ) : (
         <OneAttachmentWithFlags onDelete={onDeleteFlag} />

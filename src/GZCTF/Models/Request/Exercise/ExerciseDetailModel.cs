@@ -30,9 +30,9 @@ public class ExerciseDetailModel
     public List<string>? Hints { get; set; }
 
     /// <summary>
-    /// Exercise credits
+    /// Fixed score of the exercise in the range
     /// </summary>
-    public bool Credit { get; set; }
+    public int Score { get; set; }
 
     /// <summary>
     /// Difficulty of the exercise, used for tags, sorting, etc.
@@ -50,6 +50,21 @@ public class ExerciseDetailModel
     public ChallengeType Type { get; set; } = ChallengeType.StaticAttachment;
 
     /// <summary>
+    /// Whether the current user has solved the exercise
+    /// </summary>
+    public bool IsSolved { get; set; }
+
+    /// <summary>
+    /// Number of submissions made by the current user
+    /// </summary>
+    public int Attempts { get; set; }
+
+    /// <summary>
+    /// Maximum number of submissions allowed (0 = no limit)
+    /// </summary>
+    public int SubmissionLimit { get; set; }
+
+    /// <summary>
     /// Flag context
     /// </summary>
     public ClientFlagContext Context { get; set; } = null!;
@@ -60,12 +75,14 @@ public class ExerciseDetailModel
             Id = instance.ExerciseId,
             Content = instance.Exercise.Content,
             Hints = instance.Exercise.Hints,
-            Credit = instance.Exercise.Credit,
+            Score = instance.Exercise.RangeScore,
             Difficulty = instance.Exercise.Difficulty,
             Category = instance.Exercise.Category,
             Tags = instance.Exercise.Tags,
             Title = instance.Exercise.Title,
             Type = instance.Exercise.Type,
+            IsSolved = instance.SolveTimeUtc > DateTimeOffset.FromUnixTimeSeconds(0),
+            SubmissionLimit = instance.Exercise.SubmissionLimit,
             Context = new()
             {
                 InstanceEntry = instance.Container?.Entry,

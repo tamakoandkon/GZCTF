@@ -995,7 +995,8 @@ public class GameController(
                     StatusCodes.Status404NotFound));
 
             // Check if submission exceeds challenge deadline (only reject in non-practice mode)
-            var hasExceededDeadline = instance.Challenge.DeadlineUtc is { } deadline && submitTime > deadline;
+            var hasExceededDeadline = instance.Challenge.EffectiveContent.DeadlineUtc is { } deadline &&
+                                      submitTime > deadline;
             if (hasExceededDeadline && !context.Game!.PracticeMode)
                 return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_DeadlinePassed)]));
 
@@ -1009,7 +1010,8 @@ public class GameController(
             var currentAttempts =
                 await submissionRepository.CountSubmissions(context.Participation!.Id, challengeId, token);
 
-            if (instance.Challenge.SubmissionLimit > 0 && currentAttempts >= instance.Challenge.SubmissionLimit)
+            if (instance.Challenge.EffectiveContent.SubmissionLimit > 0 &&
+                currentAttempts >= instance.Challenge.EffectiveContent.SubmissionLimit)
             {
                 return BadRequest(
                     new RequestResponse(localizer[nameof(Resources.Program.Challenge_SubmissionLimitExceeded)]));

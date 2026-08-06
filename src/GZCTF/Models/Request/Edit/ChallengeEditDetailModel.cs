@@ -155,34 +155,46 @@ public class ChallengeEditDetailModel
     [Required]
     public double Difficulty { get; set; } = 3;
 
+    /// <summary>
+    /// Whether this challenge is linked to a pool challenge
+    /// </summary>
+    public bool IsLinked { get; set; }
+
+    /// <summary>
+    /// Pool challenge ID, null means a standalone challenge
+    /// </summary>
+    public int? PoolChallengeId { get; set; }
+
     internal static ChallengeEditDetailModel FromChallenge(GameChallenge chal) =>
         new()
         {
             Id = chal.Id,
-            Title = chal.Title,
-            Content = chal.Content,
-            Category = chal.Category,
-            Type = chal.Type,
-            FlagTemplate = chal.FlagTemplate,
-            Hints = chal.Hints ?? [],
+            Title = chal.EffectiveContent.Title,
+            Content = chal.EffectiveContent.Content,
+            Category = chal.EffectiveContent.Category,
+            Type = chal.EffectiveContent.Type,
+            FlagTemplate = chal.EffectiveContent.FlagTemplate,
+            Hints = chal.EffectiveContent.Hints ?? [],
             IsEnabled = chal.IsEnabled,
-            ContainerImage = chal.ContainerImage,
-            MemoryLimit = chal.MemoryLimit,
-            CPUCount = chal.CPUCount,
-            StorageLimit = chal.StorageLimit,
-            ExposePort = chal.ExposePort,
-            NetworkMode = chal.NetworkMode,
+            ContainerImage = chal.EffectiveContent.ContainerImage,
+            MemoryLimit = chal.EffectiveContent.MemoryLimit,
+            CPUCount = chal.EffectiveContent.CPUCount,
+            StorageLimit = chal.EffectiveContent.StorageLimit,
+            ExposePort = chal.EffectiveContent.ExposePort,
+            NetworkMode = chal.EffectiveContent.NetworkMode,
             EnableTrafficCapture = chal.EnableTrafficCapture,
             DisableBloodBonus = chal.DisableBloodBonus,
             OriginalScore = chal.OriginalScore,
             MinScoreRate = chal.MinScoreRate,
             Difficulty = chal.Difficulty,
-            FileName = chal.FileName,
-            Attachment = chal.Attachment,
-            SubmissionLimit = chal.SubmissionLimit,
-            DeadlineUtc = chal.DeadlineUtc,
+            FileName = chal.EffectiveContent.FileName,
+            Attachment = chal.EffectiveContent.Attachment,
+            SubmissionLimit = chal.EffectiveContent.SubmissionLimit,
+            DeadlineUtc = chal.EffectiveContent.DeadlineUtc,
             AcceptedCount = 0, // This field should be set externally
             TestContainer = chal.TestContainer is null ? null : ContainerInfoModel.FromContainer(chal.TestContainer),
-            Flags = chal.Flags.Select(FlagInfoModel.FromFlagContext).ToList()
+            Flags = chal.Flags.Select(FlagInfoModel.FromFlagContext).ToList(),
+            IsLinked = chal.IsLinked,
+            PoolChallengeId = chal.PoolChallengeId
         };
 }

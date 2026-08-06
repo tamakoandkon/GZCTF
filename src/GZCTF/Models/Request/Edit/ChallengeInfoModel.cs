@@ -56,17 +56,29 @@ public class ChallengeInfoModel
     /// </summary>
     public DateTimeOffset? DeadlineUtc { get; set; }
 
+    /// <summary>
+    /// Whether this challenge is linked to a pool challenge
+    /// </summary>
+    public bool IsLinked { get; set; }
+
+    /// <summary>
+    /// Pool challenge ID, null means a standalone challenge
+    /// </summary>
+    public int? PoolChallengeId { get; set; }
+
     internal static ChallengeInfoModel FromChallenge(GameChallenge challenge) =>
         new()
         {
             Id = challenge.Id,
-            Title = challenge.Title,
-            Category = challenge.Category,
-            Type = challenge.Type,
+            Title = challenge.EffectiveContent.Title,
+            Category = challenge.EffectiveContent.Category,
+            Type = challenge.EffectiveContent.Type,
             Score = challenge.OriginalScore, // This field should be updated with scoreboard
             MinScore = (int)Math.Floor(challenge.MinScoreRate * challenge.OriginalScore),
             OriginalScore = challenge.OriginalScore,
             IsEnabled = challenge.IsEnabled,
-            DeadlineUtc = challenge.DeadlineUtc
+            DeadlineUtc = challenge.EffectiveContent.DeadlineUtc,
+            IsLinked = challenge.IsLinked,
+            PoolChallengeId = challenge.PoolChallengeId
         };
 }

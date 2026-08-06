@@ -346,6 +346,7 @@ public class GameRepository(
                 .Select(c => new ChallengeRecord
                 (
                     c.Id,
+                    c.PoolChallengeId,
                     new ChallengeScoreMeta(
                         c.OriginalScore,
                         c.MinScoreRate,
@@ -365,6 +366,31 @@ public class GameRepository(
 
             challenges = challengeRecords.ToDictionary(c => c.Key, c => c.Value.Info);
             challengeMetas = challengeRecords.ToDictionary(c => c.Key, c => c.Value.Meta);
+
+            // For linked challenges, content fields (Title/Category/DeadlineUtc) come from the pool
+            var poolIds = challengeRecords.Values
+                .Where(c => c.PoolChallengeId is not null)
+                .Select(c => c.PoolChallengeId!.Value)
+                .Distinct()
+                .ToArray();
+
+            if (poolIds.Length > 0)
+            {
+                var pools = await Context.PoolChallenges.AsNoTracking().IgnoreAutoIncludes()
+                    .Where(p => poolIds.Contains(p.Id))
+                    .Select(p => new { p.Id, p.Title, p.Category, p.DeadlineUtc })
+                    .ToDictionaryAsync(p => p.Id, token);
+
+                foreach (var record in challengeRecords.Values)
+                {
+                    if (record.PoolChallengeId is { } poolId && pools.TryGetValue(poolId, out var pool))
+                    {
+                        record.Info.Title = pool.Title;
+                        record.Info.Category = pool.Category;
+                        record.Info.DeadlineUtc = pool.DeadlineUtc;
+                    }
+                }
+            }
 
             var challengeIds = challengeRecords.Keys.ToArray();
 
@@ -614,6 +640,7 @@ public class GameRepository(
 
     private readonly record struct ChallengeRecord(
         int Id,
+        int? PoolChallengeId,
         ChallengeScoreMeta Meta,
         ChallengeInfo Info);
 

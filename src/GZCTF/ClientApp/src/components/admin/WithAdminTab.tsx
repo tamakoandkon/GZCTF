@@ -2,6 +2,7 @@ import { Group, GroupProps, LoadingOverlay, Stack } from '@mantine/core'
 import {
   mdiAccountCogOutline,
   mdiAccountGroupOutline,
+  mdiDatabaseOutline,
   mdiFileDocumentOutline,
   mdiFlagOutline,
   mdiPackageVariantClosed,
@@ -29,6 +30,7 @@ export const WithAdminTab: FC<AdminTabProps> = ({ head, headProps, isLoading, ch
 
   const pages = [
     { icon: mdiFlagOutline, title: t('admin.tab.games.index'), path: 'games' },
+    { icon: mdiDatabaseOutline, title: t('admin.tab.pool'), path: 'pool' },
     { icon: mdiAccountGroupOutline, title: t('admin.tab.teams'), path: 'teams' },
     { icon: mdiAccountCogOutline, title: t('admin.tab.users'), path: 'users' },
     {

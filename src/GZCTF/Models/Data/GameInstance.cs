@@ -12,9 +12,9 @@ public class GameInstance : Instance
     /// </summary>
     internal Attachment? Attachment
     {
-        get => Challenge.Type == ChallengeType.DynamicAttachment
+        get => Challenge.EffectiveContent.Type == ChallengeType.DynamicAttachment
             ? FlagContext?.Attachment
-            : Challenge.Attachment;
+            : Challenge.EffectiveContent.Attachment;
     }
 
     /// <summary>
@@ -22,9 +22,9 @@ public class GameInstance : Instance
     /// </summary>
     internal string? AttachmentUrl
     {
-        get => Challenge.Type == ChallengeType.DynamicAttachment
-            ? FlagContext?.Attachment?.UrlWithName(Challenge.FileName)
-            : Challenge.Attachment?.UrlWithName();
+        get => Challenge.EffectiveContent.Type == ChallengeType.DynamicAttachment
+            ? FlagContext?.Attachment?.UrlWithName(Challenge.EffectiveContent.FileName)
+            : Challenge.EffectiveContent.Attachment?.UrlWithName();
     }
 
     #region Db Relationship

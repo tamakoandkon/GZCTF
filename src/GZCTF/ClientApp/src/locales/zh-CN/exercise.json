@@ -1,0 +1,37 @@
+{
+  "title": "靶场",
+  "empty": "暂无可用的靶场题目",
+  "tab": {
+    "all": "全部"
+  },
+  "button": {
+    "hide_solved": "隐藏已解出",
+    "show_solved": "显示已解出",
+    "scoreboard": "排行榜",
+    "challenges": "题目列表"
+  },
+  "card": {
+    "accepted_count": "{{count}} 人已解出",
+    "submissions": "{{count}} 次提交",
+    "solved": "已解出"
+  },
+  "difficulty": {
+    "baby": "入门",
+    "trivial": "简单",
+    "easy": "容易",
+    "normal": "普通",
+    "medium": "中等",
+    "hard": "困难",
+    "expert": "专家",
+    "insane": "疯狂"
+  },
+  "scoreboard": {
+    "title": "靶场排行榜",
+    "rank": "排名",
+    "user": "用户",
+    "score": "总分",
+    "solved_count": "解出题数",
+    "last_solve_time": "最后解出时间",
+    "empty": "暂无排行数据"
+  }
+}

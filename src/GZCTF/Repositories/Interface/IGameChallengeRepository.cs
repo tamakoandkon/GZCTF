@@ -40,6 +40,15 @@ public interface IGameChallengeRepository : IRepository
     public Task<GameChallenge?> GetChallenge(int gameId, int id, CancellationToken token = default);
 
     /// <summary>
+    /// Get a challenge of a game that references the given pool challenge
+    /// </summary>
+    /// <param name="gameId">比赛Id</param>
+    /// <param name="poolChallengeId">题库题Id</param>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    public Task<GameChallenge?> GetChallengeByPoolId(int gameId, int poolChallengeId, CancellationToken token = default);
+
+    /// <summary>
     /// Load Flags for a challenge, the challenge should be tracked by the DbContext
     /// </summary>
     /// <param name="challenge"></param>

@@ -67,14 +67,14 @@ public class ChallengeDetailModel
         new()
         {
             Id = gameInstance.Challenge.Id,
-            Content = gameInstance.Challenge.Content,
-            Hints = gameInstance.Challenge.Hints,
+            Content = gameInstance.Challenge.EffectiveContent.Content,
+            Hints = gameInstance.Challenge.EffectiveContent.Hints,
             Score = scoreboardChallenge?.Score ?? gameInstance.Challenge.CurrentScore,
-            Category = gameInstance.Challenge.Category,
-            Title = gameInstance.Challenge.Title,
-            Type = gameInstance.Challenge.Type,
-            Limit = gameInstance.Challenge.SubmissionLimit,
-            Deadline = gameInstance.Challenge.DeadlineUtc,
+            Category = gameInstance.Challenge.EffectiveContent.Category,
+            Title = gameInstance.Challenge.EffectiveContent.Title,
+            Type = gameInstance.Challenge.EffectiveContent.Type,
+            Limit = gameInstance.Challenge.EffectiveContent.SubmissionLimit,
+            Deadline = gameInstance.Challenge.EffectiveContent.DeadlineUtc,
             Attempts = attemptCount,
             Context = new()
             {

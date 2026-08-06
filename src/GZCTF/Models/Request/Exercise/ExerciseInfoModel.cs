@@ -31,9 +31,14 @@ public class ExerciseInfoModel
     public List<string>? Tags { get; set; } = new();
 
     /// <summary>
-    /// Exercise points
+    /// Fixed score of the exercise in the range
     /// </summary>
-    public int Credit { get; set; }
+    public int Score { get; set; }
+
+    /// <summary>
+    /// Whether the current user has solved the exercise
+    /// </summary>
+    public bool IsSolved { get; set; }
 
     /// <summary>
     /// Number of people who solved the exercise

@@ -110,6 +110,7 @@ public class GameExportService(AppDbContext dbContext, IBlobStorage blobStorage)
             .Where(c => c.GameId == gameId)
             .Include(c => c.Attachment)
             .ThenInclude(a => a!.LocalFile)
+            .Include(c => c.PoolChallenge)
             .ToHashSetAsync(ct);
 
         // 3.1) Load Flags and their Attachment.LocalFile only for static challenges

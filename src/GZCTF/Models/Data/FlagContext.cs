@@ -44,14 +44,14 @@ public class FlagContext
     public GameChallenge? Challenge { get; set; }
 
     /// <summary>
-    /// Exercise ID
+    /// Pool challenge ID
     /// </summary>
-    public int? ExerciseId { get; set; }
+    public int? PoolChallengeId { get; set; }
 
     /// <summary>
-    /// Exercise
+    /// Pool challenge
     /// </summary>
-    public ExerciseChallenge? Exercise { get; set; }
+    public PoolChallenge? PoolChallenge { get; set; }
 
     #endregion Db Relationship
 }

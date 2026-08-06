@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   ComboboxItem,
   Grid,
@@ -57,6 +58,7 @@ const GameChallengeEdit: FC = () => {
   )
 
   const [disabled, setDisabled] = useState(false)
+  const linked = challenge?.isLinked ?? false
 
   const [minRate, setMinRate] = useState((challenge?.minScoreRate ?? 0.25) * 100)
   const [category, setCategory] = useState<string | null>(challenge?.category ?? ChallengeCategory.Misc)
@@ -264,11 +266,19 @@ const GameChallengeEdit: FC = () => {
       }
     >
       <Stack>
+        {linked && (
+          <Group gap="xs" wrap="nowrap" p="sm" style={{ borderRadius: 8, backgroundColor: 'var(--mantine-color-teal-light)' }}>
+            <Badge color="teal" size="sm" variant="light">
+              {t('admin.content.pool.linked_badge')}
+            </Badge>
+            <Text size="sm">{t('admin.content.pool.linked_hint')}</Text>
+          </Group>
+        )}
         <Grid columns={3}>
           <Grid.Col span={1}>
             <TextInput
               label={t('admin.content.games.challenges.title')}
-              disabled={disabled}
+              disabled={disabled || linked}
               value={challengeInfo.title ?? ''}
               required
               onChange={(e) => setChallengeInfo({ ...challengeInfo, title: e.target.value })}
@@ -301,7 +311,7 @@ const GameChallengeEdit: FC = () => {
               label={t('admin.content.games.challenges.category')}
               placeholder="Category"
               value={category}
-              disabled={disabled}
+              disabled={disabled || linked}
               onChange={(e) => {
                 setCategory(e)
                 setChallengeInfo({ ...challengeInfo, category: e as ChallengeCategory })
@@ -326,7 +336,7 @@ const GameChallengeEdit: FC = () => {
               }
               value={challengeInfo?.content ?? ''}
               autosize
-              disabled={disabled}
+              disabled={disabled || linked}
               minRows={5}
               maxRows={5}
               onChange={(e) => setChallengeInfo({ ...challengeInfo, content: e.target.value })}
@@ -340,7 +350,7 @@ const GameChallengeEdit: FC = () => {
                 placeholder={t('admin.content.games.challenges.submission_limit.placeholder')}
                 min={0}
                 max={10000}
-                disabled={disabled}
+                disabled={disabled || linked}
                 stepHoldDelay={500}
                 stepHoldInterval={(t) => Math.max(1000 / t ** 2, 25)}
                 value={challengeInfo?.submissionLimit || undefined}
@@ -356,7 +366,7 @@ const GameChallengeEdit: FC = () => {
                 size="sm"
                 value={deadline?.toDate()}
                 valueFormat="L LT"
-                disabled={disabled}
+                disabled={disabled || linked}
                 clearable
                 onChange={(e) => {
                   setDeadline(e ? dayjs(e) : null)
@@ -376,7 +386,7 @@ const GameChallengeEdit: FC = () => {
                   </Group>
                 }
                 hints={challengeInfo?.hints ?? []}
-                disabled={disabled}
+                disabled={disabled || linked}
                 height={180}
                 onChangeHint={(hints) => setChallengeInfo({ ...challengeInfo, hints })}
               />
@@ -459,7 +469,7 @@ const GameChallengeEdit: FC = () => {
           <TextInput
             label={t('admin.content.games.challenges.attachment_name.label')}
             description={t('admin.content.games.challenges.attachment_name.description')}
-            disabled={disabled}
+            disabled={disabled || linked}
             value={challengeInfo.fileName ?? 'attachment'}
             onChange={(e) => setChallengeInfo({ ...challengeInfo, fileName: e.target.value })}
           />
@@ -470,7 +480,7 @@ const GameChallengeEdit: FC = () => {
               <Group justify="space-between" align="flex-end">
                 <TextInput
                   label={t('admin.content.games.challenges.container_image')}
-                  disabled={disabled}
+                  disabled={disabled || linked}
                   value={challengeInfo.containerImage ?? ''}
                   required
                   onChange={(e) => setChallengeInfo({ ...challengeInfo, containerImage: e.target.value })}
@@ -482,7 +492,7 @@ const GameChallengeEdit: FC = () => {
                   max={65535}
                   w="8rem"
                   required
-                  disabled={disabled}
+                  disabled={disabled || linked}
                   stepHoldDelay={500}
                   stepHoldInterval={(t) => Math.max(1000 / t ** 2, 25)}
                   value={challengeInfo.exposePort ?? 80}
@@ -521,7 +531,7 @@ const GameChallengeEdit: FC = () => {
                 label={t('admin.content.games.challenges.network_mode.label')}
                 description={t('admin.content.games.challenges.network_mode.description')}
                 value={networkMode ?? NetworkMode.Open}
-                disabled={disabled}
+                disabled={disabled || linked}
                 onChange={(e) => {
                   setNetworkMode(e)
                   setChallengeInfo({ ...challengeInfo, networkMode: e as NetworkMode })
@@ -540,7 +550,7 @@ const GameChallengeEdit: FC = () => {
                 min={1}
                 max={1024}
                 required
-                disabled={disabled}
+                disabled={disabled || linked}
                 stepHoldDelay={500}
                 stepHoldInterval={(t) => Math.max(1000 / t ** 2, 25)}
                 value={challengeInfo.cpuCount ?? 1}
@@ -558,7 +568,7 @@ const GameChallengeEdit: FC = () => {
                 min={32}
                 max={1048576}
                 required
-                disabled={disabled}
+                disabled={disabled || linked}
                 stepHoldDelay={500}
                 stepHoldInterval={(t) => Math.max(1000 / t ** 2, 25)}
                 value={challengeInfo.memoryLimit ?? 32}
@@ -576,7 +586,7 @@ const GameChallengeEdit: FC = () => {
                 min={0}
                 max={1048576}
                 required
-                disabled={disabled}
+                disabled={disabled || linked}
                 stepHoldDelay={500}
                 stepHoldInterval={(t) => Math.max(1000 / t ** 2, 25)}
                 value={challengeInfo.storageLimit ?? 32}
