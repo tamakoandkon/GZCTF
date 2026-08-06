@@ -120,9 +120,6 @@ const Exercise: FC = () => {
         <Group gap="sm" justify="space-between" align="center" wrap="nowrap" px="md" pt="md">
           <Stack gap={0}>
             <Title order={2}>{t('exercise.title')}</Title>
-            <Text c="dimmed" size="sm">
-              {t('exercise.description')}
-            </Text>
           </Stack>
           <Button
             component={Link}

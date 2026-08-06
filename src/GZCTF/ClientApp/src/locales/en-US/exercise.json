@@ -1,6 +1,5 @@
 {
   "title": "Training",
-  "description": "No registration needed — any logged-in user can start solving, the goal is still to get the flag",
   "empty": "No challenges available in the training range",
   "tab": {
     "all": "All"
