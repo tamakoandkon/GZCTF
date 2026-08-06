@@ -23,15 +23,17 @@ import { ValidatedRepoMeta, useConfig } from '@Hooks/useConfig'
 import { usePageTitle } from '@Hooks/usePageTitle'
 import classes from '@Styles/About.module.css'
 
-const maintainers = [
-  { name: '铸剑网络安全实验室', abbr: '铸' },
-  { name: 'tamako', abbr: 'T' },
-  { name: 'xingu', abbr: 'X' },
-  { name: 'yzqzss', abbr: 'Y' },
-  { name: 'Dekul', abbr: 'D'},
-] as const
+type Maintainer = { name: string; abbr: string; github?: string }
 
-type Maintainer = (typeof maintainers)[number]
+// github: GitHub username, rendered as https://github.com/{github}.png avatar;
+// when absent the avatar falls back to the abbreviation circle
+const maintainers: Maintainer[] = [
+  { name: '铸剑网络安全实验室', abbr: '铸' },
+  { name: 'tamako', abbr: 'T', github: 'tamakoandkon' },
+  { name: 'xingu', abbr: 'X', github: 'cbkyami' },
+  { name: 'yzqzss', abbr: 'Y', github: 'yzqzss' },
+  { name: 'Dekul', abbr: 'D', github: 'Dekul1' },
+]
 
 const About: FC = () => {
   const { repo, valid, rawTag: tag, sha, buildTime } = ValidatedRepoMeta()
@@ -204,8 +206,14 @@ const About: FC = () => {
               <Group gap={0} wrap="nowrap" w="max-content" className={classes.scrollGroup}>
                 {maintainerMarquee.map((maintainer, index) => (
                   <Group key={`${maintainer.name}-${index}`} gap="xs" align="center" justify="center" mr="xl">
-                    <Avatar radius="xl" size="sm" className={classes.contributorAvatar} color={theme.primaryColor}>
-                      {maintainer.abbr}
+                    <Avatar
+                      radius="xl"
+                      size="sm"
+                      className={classes.contributorAvatar}
+                      color={theme.primaryColor}
+                      src={maintainer.github ? `https://github.com/${maintainer.github}.png` : undefined}
+                    >
+                      {!maintainer.github && maintainer.abbr}
                     </Avatar>
                     <Text size="sm" fw={500} c={theme.primaryColor} className={classes.contributorLink}>
                       {maintainer.name}
