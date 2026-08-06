@@ -22,7 +22,7 @@ import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
-import { WithAdminTab } from '@Components/admin/WithAdminTab'
+import { AdminPage } from '@Components/admin/AdminPage'
 import { showErrorMsg } from '@Utils/Shared'
 import {
   ChallengeCategoryItem,
@@ -119,7 +119,7 @@ const PoolIndex: FC = () => {
   }
 
   return (
-    <WithAdminTab
+    <AdminPage
       isLoading={!pools}
       headProps={{ justify: 'space-between' }}
       head={
@@ -267,7 +267,7 @@ const PoolIndex: FC = () => {
           </Button>
         </Stack>
       </Modal>
-    </WithAdminTab>
+    </AdminPage>
   )
 }
 

@@ -28,7 +28,7 @@ import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { FlagEditPanel } from '@Components/admin/FlagEditPanel'
-import { WithAdminTab } from '@Components/admin/WithAdminTab'
+import { AdminPage } from '@Components/admin/AdminPage'
 import { showErrorMsg } from '@Utils/Shared'
 import { useDisplayInputStyles } from '@Utils/ThemeOverride'
 import { useEditPool } from '@Hooks/useEdit'
@@ -280,7 +280,7 @@ const PoolFlags: FC = () => {
   }
 
   return (
-    <WithAdminTab
+    <AdminPage
       isLoading={!pool}
       headProps={{ justify: 'space-between' }}
       head={
@@ -514,7 +514,7 @@ const PoolFlags: FC = () => {
           </Button>
         </Stack>
       </Modal>
-    </WithAdminTab>
+    </AdminPage>
   )
 }
 

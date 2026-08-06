@@ -26,7 +26,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { HintList } from '@Components/HintList'
 import { InstanceEntry } from '@Components/InstanceEntry'
 import { SwitchLabel } from '@Components/admin/SwitchLabel'
-import { WithAdminTab } from '@Components/admin/WithAdminTab'
+import { AdminPage } from '@Components/admin/AdminPage'
 import { getInputNumber, NetworkModeItem, NetworkModeList, showErrorMsg, useNetworkModeMap } from '@Utils/Shared'
 import {
   ChallengeCategoryItem,
@@ -178,7 +178,7 @@ const PoolChallengeEdit: FC = () => {
   const isDynamicContainer = type === ChallengeType.DynamicContainer
 
   return (
-    <WithAdminTab
+    <AdminPage
       isLoading={!pool}
       headProps={{ justify: 'space-between' }}
       head={
@@ -561,7 +561,7 @@ const PoolChallengeEdit: FC = () => {
           </Badge>
         )}
       </Stack>
-    </WithAdminTab>
+    </AdminPage>
   )
 }
 
