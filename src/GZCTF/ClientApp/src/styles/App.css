@@ -2,6 +2,14 @@
  * Base styles for the application
  */
 
+/* Mantine v9 sets AppShell/Paper backgrounds to --mantine-color-body,
+ * which defaults to #fff in light mode. Override it so the light theme
+ * uses the custom cream background (gray-0) instead of pure white.
+ */
+:root[data-mantine-color-scheme='light'] {
+  --mantine-color-body: var(--mantine-color-gray-0);
+}
+
 body {
   padding: 0;
   margin: 0;
