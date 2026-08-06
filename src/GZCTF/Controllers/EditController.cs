@@ -687,13 +687,21 @@ public class EditController(
 
         var content = res.EffectiveContent;
 
-        // Content fields of a linked challenge are managed in the pool
-        if (res.IsLinked && (model.Title is not null || model.Content is not null || model.Category is not null ||
-                             model.Hints is not null || model.CPUCount is not null || model.MemoryLimit is not null ||
-                             model.StorageLimit is not null || model.ContainerImage is not null ||
-                             model.ExposePort is not null || model.NetworkMode is not null || model.FileName is not null ||
-                             model.SubmissionLimit is not null || model.FlagTemplate is not null ||
-                             model.DeadlineUtc is not null))
+        // Content fields of a linked challenge are managed in the pool; reject only when a
+        // content field would actually change its value (clients may submit the full model)
+        if (res.IsLinked && (model.Title is not null && model.Title != content.Title ||
+                             model.Content is not null && model.Content != content.Content ||
+                             model.Category is not null && model.Category != content.Category ||
+                             model.Hints is not null && !model.Hints.SequenceEqual(content.Hints ?? []) ||
+                             model.CPUCount is not null && model.CPUCount != content.CPUCount ||
+                             model.MemoryLimit is not null && model.MemoryLimit != content.MemoryLimit ||
+                             model.StorageLimit is not null && model.StorageLimit != content.StorageLimit ||
+                             model.ContainerImage is not null && model.ContainerImage.Trim() != content.ContainerImage ||
+                             model.ExposePort is not null && model.ExposePort != content.ExposePort ||
+                             model.NetworkMode is not null && model.NetworkMode != content.NetworkMode ||
+                             model.FileName is not null && model.FileName != content.FileName ||
+                             model.SubmissionLimit is not null && model.SubmissionLimit != content.SubmissionLimit ||
+                             model.FlagTemplate is not null && model.FlagTemplate != content.FlagTemplate))
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Challenge_ContentManagedInPool)]));
 

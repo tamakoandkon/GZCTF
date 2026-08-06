@@ -89,7 +89,6 @@ const PoolChallengeEdit: FC = () => {
       const res = await api.edit.editUpdatePoolChallenge(numId, {
         ...model,
         deadlineUtc: deadline ? deadline.valueOf() : 0,
-        isEnabled: undefined,
       })
       if (!noFeedback) {
         showNotification({

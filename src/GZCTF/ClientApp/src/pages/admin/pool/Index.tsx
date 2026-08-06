@@ -99,7 +99,7 @@ const PoolIndex: FC = () => {
 
   const onDelete = (id: number, name: string) => {
     modals.openConfirmModal({
-      title: t('admin.button.pool.new'),
+      title: t('admin.button.challenges.delete'),
       children: <Text size="sm">{t('admin.content.pool.delete', { name })}</Text>,
       onConfirm: async () => {
         try {
