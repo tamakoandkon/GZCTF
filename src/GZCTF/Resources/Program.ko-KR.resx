@@ -1088,4 +1088,7 @@
   <data name="Challenge_DeadlinePassed" xml:space="preserve">
     <value>이 도전 과제의 마감 시간이 지났습니다</value>
   </data>
+  <data name="Challenge_AlreadySolved" xml:space="preserve">
+    <value>이미 해결한 문제입니다. 다시 제출할 필요가 없습니다</value>
+  </data>
 </root>

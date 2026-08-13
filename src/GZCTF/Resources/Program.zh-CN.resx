@@ -1097,4 +1097,7 @@
   <data name="Challenge_DeadlinePassed" xml:space="preserve">
     <value>该题目的截止时间已过</value>
   </data>
+  <data name="Challenge_AlreadySolved" xml:space="preserve">
+    <value>你已经解出这道题目，无需重复提交</value>
+  </data>
 </root>

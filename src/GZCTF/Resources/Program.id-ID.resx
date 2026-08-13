@@ -1088,4 +1088,7 @@
   <data name="Challenge_DeadlinePassed" xml:space="preserve">
     <value>Batas waktu untuk tantangan ini telah berakhir</value>
   </data>
+  <data name="Challenge_AlreadySolved" xml:space="preserve">
+    <value>Anda sudah menyelesaikan tantangan ini, tidak perlu mengirim lagi</value>
+  </data>
 </root>

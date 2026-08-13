@@ -1108,4 +1108,7 @@
   <data name="Challenge_DeadlinePassed" xml:space="preserve">
     <value>Die Frist für diese Herausforderung ist abgelaufen</value>
   </data>
+  <data name="Challenge_AlreadySolved" xml:space="preserve">
+    <value>Sie haben diese Aufgabe bereits gelöst, keine erneute Einreichung nötig</value>
+  </data>
 </root>

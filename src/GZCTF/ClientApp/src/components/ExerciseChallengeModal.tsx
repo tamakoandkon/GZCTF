@@ -3,7 +3,7 @@ import { useInputState } from '@mantine/hooks'
 import { notifications, showNotification } from '@mantine/notifications'
 import { mdiCheck, mdiClose, mdiLoading } from '@mdi/js'
 import { Icon } from '@mdi/react'
-import React, { FC, useState } from 'react'
+import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChallengeModal } from '@Components/ChallengeModal'
 import { encryptApiData } from '@Utils/Crypto'
@@ -42,6 +42,13 @@ export const ExerciseChallengeModal: FC<ExerciseChallengeModalProps> = (props) =
 
   const isLimitReached =
     (challenge?.submissionLimit && (challenge.attempts ?? 0) >= challenge.submissionLimit) || false
+
+  // sync with the API detail: if the challenge is already solved, disable submission
+  useEffect(() => {
+    if (challenge?.isSolved) {
+      setSolved(true)
+    }
+  }, [challenge?.isSolved])
 
   const onSolved = () => {
     setSolved(true)

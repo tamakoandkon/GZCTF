@@ -1088,4 +1088,7 @@
   <data name="Challenge_DeadlinePassed" xml:space="preserve">
     <value>Thời hạn cho thử thách này đã hết</value>
   </data>
+  <data name="Challenge_AlreadySolved" xml:space="preserve">
+    <value>Bạn đã giải quyết thử thách này, không cần gửi lại</value>
+  </data>
 </root>

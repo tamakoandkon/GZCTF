@@ -1088,4 +1088,7 @@
   <data name="Challenge_DeadlinePassed" xml:space="preserve">
     <value>このチャレンジの締め切りが過ぎています</value>
   </data>
+  <data name="Challenge_AlreadySolved" xml:space="preserve">
+    <value>この問題はすでに解いています。再提出は不要です</value>
+  </data>
 </root>

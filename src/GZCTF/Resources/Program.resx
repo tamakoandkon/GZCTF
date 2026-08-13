@@ -1097,4 +1097,7 @@
   <data name="Challenge_DeadlinePassed" xml:space="preserve">
     <value>The deadline for this challenge has passed</value>
   </data>
+  <data name="Challenge_AlreadySolved" xml:space="preserve">
+    <value>You have already solved this challenge, no need to submit again</value>
+  </data>
 </root>

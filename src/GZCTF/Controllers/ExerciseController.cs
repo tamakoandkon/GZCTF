@@ -158,6 +158,10 @@ public class ExerciseController(
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Challenge_SubmissionLimitExceeded)]));
 
+        if (instance.SolveTimeUtc > DateTimeOffset.FromUnixTimeSeconds(0))
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Challenge_AlreadySolved)]));
+
         var status = await exerciseInstanceRepository.VerifyAnswer(user, instance, answer, token);
 
         var submission = await exerciseSubmissionRepository.AddSubmission(new()
