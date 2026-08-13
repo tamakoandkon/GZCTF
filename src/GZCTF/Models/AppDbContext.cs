@@ -38,6 +38,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
     public DbSet<ExerciseInstance> ExerciseInstances { get; set; } = null!;
     public DbSet<PoolChallenge> PoolChallenges { get; set; } = null!;
     public DbSet<ExerciseSubmission> ExerciseSubmissions { get; set; } = null!;
+    public DbSet<ExerciseEvent> ExerciseEvents { get; set; } = null!;
+    public DbSet<ExerciseCheatInfo> ExerciseCheatInfo { get; set; } = null!;
     public DbSet<UserParticipation> UserParticipations { get; set; } = null!;
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
     public DbSet<ApiToken> ApiTokens { get; set; } = null!;
@@ -417,6 +419,48 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
                 .HasForeignKey(e => e.SubmissionId);
 
             entity.HasKey(e => e.SubmissionId);
+        });
+
+        builder.Entity<ExerciseEvent>(entity =>
+        {
+            entity.Property(e => e.Values)
+                .HasConversion(listConverter)
+                .Metadata
+                .SetValueComparer(listComparer);
+
+            entity.HasOne(e => e.Exercise)
+                .WithMany()
+                .HasForeignKey(e => e.ExerciseId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Navigation(e => e.User).AutoInclude();
+        });
+
+        builder.Entity<ExerciseCheatInfo>(entity =>
+        {
+            entity.HasOne(e => e.Exercise)
+                .WithMany()
+                .HasForeignKey(e => e.ExerciseId);
+
+            entity.HasOne(e => e.SourceUser)
+                .WithMany()
+                .HasForeignKey(e => e.SourceUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.SubmitUser)
+                .WithMany()
+                .HasForeignKey(e => e.SubmitUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Submission)
+                .WithMany()
+                .HasForeignKey(e => e.ExerciseSubmissionId);
+
+            entity.HasKey(e => e.ExerciseSubmissionId);
         });
 
         builder.Entity<FirstSolve>(entity =>
