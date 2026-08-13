@@ -12,8 +12,28 @@ public class MonitorHub : Hub<IMonitorClient>
     {
         var context = Context.GetHttpContext();
 
-        if (context is null
-            || !context.Request.Query.TryGetValue("game", out var gameId)
+        if (context is null)
+        {
+            Context.Abort();
+            return;
+        }
+
+        // Training range scope: the range is global (no per-game id), join a fixed group.
+        // Auth: Monitor role or valid API token, same as the game scope.
+        if (context.Request.Query.ContainsKey("exercise"))
+        {
+            if (!await ContextHelper.HasMonitor(context) && !await ContextHelper.HasValidToken(context))
+            {
+                Context.Abort();
+                return;
+            }
+
+            await base.OnConnectedAsync();
+            await Groups.AddToGroupAsync(Context.ConnectionId, "Exercise");
+            return;
+        }
+
+        if (!context.Request.Query.TryGetValue("game", out var gameId)
             || !int.TryParse(gameId, out var gId)
             || (!await ContextHelper.HasMonitor(context) && !await ContextHelper.HasValidToken(context)))
         {
