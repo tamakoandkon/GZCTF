@@ -21,13 +21,13 @@ export enum ContainerPortMappingType {
   PlatformProxy = "PlatformProxy",
 }
 
-/** Judgement result */
-export enum AnswerResult {
-  FlagSubmitted = "FlagSubmitted",
-  Accepted = "Accepted",
-  WrongAnswer = "WrongAnswer",
-  CheatDetected = "CheatDetected",
-  NotFound = "NotFound",
+/** Submission type */
+export enum SubmissionType {
+  Unaccepted = "Unaccepted",
+  FirstBlood = "FirstBlood",
+  SecondBlood = "SecondBlood",
+  ThirdBlood = "ThirdBlood",
+  Normal = "Normal",
 }
 
 /** Game event type */
@@ -39,13 +39,25 @@ export enum EventType {
   CheatDetected = "CheatDetected",
 }
 
-/** Submission type */
-export enum SubmissionType {
-  Unaccepted = "Unaccepted",
-  FirstBlood = "FirstBlood",
-  SecondBlood = "SecondBlood",
-  ThirdBlood = "ThirdBlood",
+/** Judgement result */
+export enum AnswerResult {
+  FlagSubmitted = "FlagSubmitted",
+  Accepted = "Accepted",
+  WrongAnswer = "WrongAnswer",
+  CheatDetected = "CheatDetected",
+  NotFound = "NotFound",
+}
+
+/** Challenge difficulty */
+export enum Difficulty {
+  Baby = "Baby",
+  Trivial = "Trivial",
+  Easy = "Easy",
   Normal = "Normal",
+  Medium = "Medium",
+  Hard = "Hard",
+  Expert = "Expert",
+  Insane = "Insane",
 }
 
 /** Container network mode */
@@ -765,6 +777,56 @@ export interface ChallengeModel {
 }
 
 /** List response */
+export interface ArrayResponseOfExerciseContainerInstanceModel {
+  /** Data */
+  data: ExerciseContainerInstanceModel[];
+  /**
+   * Data length
+   * @format int32
+   */
+  length: number;
+  /**
+   * Total length
+   * @format int32
+   */
+  total?: number;
+}
+
+/** Exercise (training range) container instance information (Admin/Monitor) */
+export interface ExerciseContainerInstanceModel {
+  /** User who owns the instance */
+  user?: UserInfoModel | null;
+  /** Challenge */
+  challenge?: ChallengeModel | null;
+  /** Container image */
+  image?: string;
+  /**
+   * Container database ID
+   * @format guid
+   */
+  containerGuid?: string;
+  /** Container ID */
+  containerId?: string;
+  /**
+   * Container creation time
+   * @format uint64
+   */
+  startedAt?: number;
+  /**
+   * Expected container stop time
+   * @format uint64
+   */
+  expectStopAt?: number;
+  /** Access IP */
+  ip?: string;
+  /**
+   * Access port
+   * @format int32
+   */
+  port?: number;
+}
+
+/** List response */
 export interface ArrayResponseOfLocalFile {
   /** Data */
   data: LocalFile[];
@@ -1413,142 +1475,6 @@ export interface FlagCreateModel {
   remoteUrl?: string | null;
 }
 
-/** Difficulty of a challenge */
-export enum Difficulty {
-  Baby = 0,
-  Trivial = 1,
-  Easy = 2,
-  Normal = 3,
-  Medium = 4,
-  Hard = 5,
-  Expert = 6,
-  Insane = 7,
-}
-
-/** Basic exercise information */
-export interface ExerciseInfoModel {
-  /**
-   * Exercise ID
-   * @format int32
-   */
-  id?: number;
-  /** Exercise title */
-  title: string;
-  /** Difficulty of the exercise */
-  difficulty: Difficulty;
-  /** Exercise category */
-  category: ChallengeCategory;
-  /** Additional tags for the exercise */
-  tags?: string[] | null;
-  /**
-   * Fixed score of the exercise in the range
-   * @format int32
-   */
-  score: number;
-  /** Whether the current user has solved the exercise */
-  isSolved: boolean;
-  /**
-   * Number of people who solved the exercise
-   * @format int32
-   */
-  acceptedCount: number;
-  /**
-   * Number of submissions
-   * @format int32
-   */
-  submissionCount: number;
-}
-
-/** Exercise detailed information */
-export interface ExerciseDetailModel {
-  /**
-   * Exercise ID
-   * @format int32
-   */
-  id?: number;
-  /** Exercise title */
-  title: string;
-  /** Exercise content */
-  content?: string;
-  /** Exercise category */
-  category: ChallengeCategory;
-  /** Exercise hints */
-  hints?: string[] | null;
-  /**
-   * Fixed score of the exercise in the range
-   * @format int32
-   */
-  score: number;
-  /** Difficulty of the exercise */
-  difficulty: Difficulty;
-  /** Additional tags for the exercise */
-  tags?: string[] | null;
-  /** Exercise type */
-  type: ChallengeType;
-  /** Whether the current user has solved the exercise */
-  isSolved: boolean;
-  /**
-   * Number of submissions made by the current user
-   * @format int32
-   */
-  attempts: number;
-  /**
-   * Maximum number of submissions allowed (0 = no limit)
-   * @format int32
-   */
-  submissionLimit: number;
-  /** Flag context */
-  context: ClientFlagContext;
-}
-
-/** Exercise scoreboard */
-export interface ExerciseScoreboardModel {
-  /** Ranked items */
-  items?: ExerciseScoreboardItem[];
-  /** Number of solvers per challenge (challenge ID → count) */
-  challengeSolvedCount?: Record<string, number>;
-}
-
-/** A single scoreboard entry */
-export interface ExerciseScoreboardItem {
-  /**
-   * Rank
-   * @format int32
-   */
-  rank?: number;
-  /** User ID */
-  userId?: string;
-  /** User name */
-  userName: string;
-  /** User avatar URL */
-  avatar?: string | null;
-  /**
-   * Total score in the range
-   * @format int32
-   */
-  score: number;
-  /**
-   * Number of solved challenges
-   * @format int32
-   */
-  solvedCount: number;
-  /** Time of the last solve */
-  lastSolveTime?: number;
-}
-
-/** Result of submitting a flag in the range */
-export interface ExerciseSubmitResult {
-  /** Judgement result */
-  status: AnswerResult;
-  /** Whether the challenge is now solved by the user */
-  isSolved: boolean;
-  /**
-   * Fixed score of the challenge
-   * @format int32
-   */
-  score: number;
-}
-
 /** Basic pool challenge information (Edit) */
 export interface PoolChallengeInfoModel {
   /**
@@ -1556,46 +1482,33 @@ export interface PoolChallengeInfoModel {
    * @format int32
    */
   id?: number;
-  /** Challenge title */
+  /**
+   * Challenge title
+   * @minLength 1
+   */
   title: string;
   /** Challenge category */
-  category: ChallengeCategory;
+  category?: ChallengeCategory;
   /** Challenge type */
-  type: ChallengeType;
+  type?: ChallengeType;
   /** Difficulty of the challenge */
-  difficulty: Difficulty;
+  difficulty?: Difficulty;
   /** Additional tags for the challenge */
   tags?: string[] | null;
   /** Is the challenge enabled (globally) */
-  isEnabled: boolean;
+  isEnabled?: boolean;
   /** Whether this challenge is enabled in the training range */
-  rangeEnabled: boolean;
+  rangeEnabled?: boolean;
   /**
    * Fixed score of this challenge in the training range
    * @format int32
    */
-  rangeScore: number;
+  rangeScore?: number;
   /**
    * Number of games referencing this challenge
    * @format int32
    */
-  referencedGamesCount: number;
-}
-
-/** A game that references a pool challenge */
-export interface ReferencedGameInfo {
-  /**
-   * Game ID
-   * @format int32
-   */
-  gameId: number;
-  /** Game title */
-  gameTitle: string;
-  /**
-   * The linked game challenge ID
-   * @format int32
-   */
-  gameChallengeId: number;
+  referencedGamesCount?: number;
 }
 
 /** Pool challenge detailed information (Edit) */
@@ -1605,7 +1518,10 @@ export interface PoolChallengeEditDetailModel {
    * @format int32
    */
   id?: number;
-  /** Challenge title */
+  /**
+   * Challenge title
+   * @minLength 1
+   */
   title: string;
   /** Challenge content */
   content?: string;
@@ -1623,33 +1539,36 @@ export interface PoolChallengeEditDetailModel {
   /** Is the challenge enabled (globally) */
   isEnabled: boolean;
   /** Difficulty of the challenge */
-  difficulty: Difficulty;
+  difficulty?: Difficulty;
   /** Additional tags for the challenge */
   tags?: string[] | null;
   /** Admin-only note */
   note?: string | null;
   /** Whether this challenge is enabled in the training range */
-  rangeEnabled: boolean;
+  rangeEnabled?: boolean;
   /**
    * Fixed score of this challenge in the training range
    * @format int32
    */
-  rangeScore: number;
+  rangeScore?: number;
   /**
    * Number of users who solved this challenge in the range
    * @format int32
    */
-  acceptedCount: number;
+  acceptedCount?: number;
   /** Unified file name (only for dynamic attachments) */
   fileName?: string | null;
   /** Challenge attachment */
-  attachment?: AttachmentModel | null;
+  attachment?: Attachment | null;
   /** Test container */
   testContainer?: ContainerInfoModel | null;
   /** Challenge Flag information */
   flags: FlagInfoModel[];
-  /** Image name and tag */
-  containerImage?: string | null;
+  /**
+   * Image name and tag
+   * @minLength 1
+   */
+  containerImage: string;
   /**
    * Memory limit (MB)
    * @format int32
@@ -1672,7 +1591,10 @@ export interface PoolChallengeEditDetailModel {
   exposePort?: number | null;
   /** Container network mode */
   networkMode?: NetworkMode | null;
-  /** The deadline of the challenge, null means no deadline */
+  /**
+   * The deadline of the challenge, null means no deadline
+   * @format uint64
+   */
   deadlineUtc?: number | null;
   /**
    * Maximum number of submissions allowed per user (0 = no limit)
@@ -1683,23 +1605,45 @@ export interface PoolChallengeEditDetailModel {
   referencedGames?: ReferencedGameInfo[];
 }
 
+/** A game that references a pool challenge */
+export interface ReferencedGameInfo {
+  /**
+   * Game ID
+   * @format int32
+   */
+  gameId?: number;
+  /** Game title */
+  gameTitle?: string;
+  /**
+   * The linked game challenge ID
+   * @format int32
+   */
+  gameChallengeId?: number;
+}
+
 /** Pool challenge creation information (Edit) */
 export interface PoolChallengeCreateModel {
-  /** Challenge title */
+  /**
+   * Challenge title
+   * @minLength 1
+   */
   title: string;
   /** Challenge category */
-  category: ChallengeCategory;
+  category?: ChallengeCategory;
   /** Challenge type */
-  type: ChallengeType;
+  type?: ChallengeType;
   /** Difficulty of the challenge */
-  difficulty: Difficulty;
+  difficulty?: Difficulty;
   /** Additional tags for the challenge */
   tags?: string[] | null;
 }
 
 /** Pool challenge update information (Edit) */
 export interface PoolChallengeUpdateModel {
-  /** Challenge title */
+  /**
+   * Challenge title
+   * @minLength 1
+   */
   title?: string | null;
   /** Challenge content */
   content?: string | null;
@@ -1716,11 +1660,16 @@ export interface PoolChallengeUpdateModel {
   isEnabled?: boolean | null;
   /** Unified file name */
   fileName?: string | null;
-  /** The deadline of the challenge, null means no deadline */
+  /**
+   * The deadline of the challenge, null means no deadline
+   * @format uint64
+   */
   deadlineUtc?: number | null;
   /**
    * Maximum number of flag submissions allowed per user (0 = no limit)
    * @format int32
+   * @min 0
+   * @max 10000
    */
   submissionLimit?: number | null;
   /** Container image name and tag */
@@ -1728,16 +1677,22 @@ export interface PoolChallengeUpdateModel {
   /**
    * Memory limit (MB)
    * @format int32
+   * @min 32
+   * @max 1048576
    */
   memoryLimit?: number | null;
   /**
    * CPU limit (0.1 CPUs)
    * @format int32
+   * @min 1
+   * @max 1024
    */
   cpuCount?: number | null;
   /**
    * Storage limit (MB)
    * @format int32
+   * @min 0
+   * @max 1048576
    */
   storageLimit?: number | null;
   /**
@@ -1758,6 +1713,8 @@ export interface PoolChallengeUpdateModel {
   /**
    * Fixed score of this challenge in the training range
    * @format int32
+   * @min 0
+   * @max 100000
    */
   rangeScore?: number | null;
 }
@@ -1774,14 +1731,231 @@ export interface GameChallengeFromPoolModel {
    * @format int32
    */
   originalScore?: number | null;
-  /** Minimum score rate */
+  /**
+   * Minimum score rate
+   * @format double
+   * @min 0
+   * @max 1
+   */
   minScoreRate?: number | null;
-  /** Difficulty coefficient */
+  /**
+   * Difficulty coefficient
+   * @format double
+   */
   difficulty?: number | null;
   /** Is blood bonus disabled (enable by default) */
   disableBloodBonus?: boolean | null;
   /** Is traffic capture enabled (disabled by default) */
   enableTrafficCapture?: boolean | null;
+}
+
+/** Basic exercise information */
+export interface ExerciseInfoModel {
+  /**
+   * Exercise ID
+   * @format int32
+   */
+  id?: number;
+  /** Exercise title */
+  title?: string;
+  /** Difficulty of the exercise, used for tags, sorting, etc. */
+  difficulty?: Difficulty;
+  /** Exercise category */
+  category?: ChallengeCategory;
+  /** Additional tags for the exercise */
+  tags?: string[] | null;
+  /**
+   * Fixed score of the exercise in the range
+   * @format int32
+   */
+  score?: number;
+  /** Whether the current user has solved the exercise */
+  isSolved?: boolean;
+  /**
+   * Number of people who solved the exercise
+   * @format int32
+   */
+  acceptedCount?: number;
+  /**
+   * Number of submissions
+   * @format int32
+   */
+  submissionCount?: number;
+}
+
+export interface ExerciseDetailModel {
+  /**
+   * Exercise ID
+   * @format int32
+   */
+  id?: number;
+  /** Exercise title */
+  title?: string;
+  /** Exercise content */
+  content?: string;
+  /** Exercise category */
+  category?: ChallengeCategory;
+  /** Exercise hints */
+  hints?: string[] | null;
+  /**
+   * Fixed score of the exercise in the range
+   * @format int32
+   */
+  score?: number;
+  /** Difficulty of the exercise, used for tags, sorting, etc. */
+  difficulty?: Difficulty;
+  /** Additional tags for the exercise */
+  tags?: string[] | null;
+  /** Exercise type */
+  type?: ChallengeType;
+  /** Whether the current user has solved the exercise */
+  isSolved?: boolean;
+  /**
+   * Number of submissions made by the current user
+   * @format int32
+   */
+  attempts?: number;
+  /**
+   * Maximum number of submissions allowed (0 = no limit)
+   * @format int32
+   */
+  submissionLimit?: number;
+  /** Flag context */
+  context?: ClientFlagContext;
+}
+
+export interface ClientFlagContext {
+  /**
+   * Close time of the challenge instance
+   * @format uint64
+   */
+  closeTime?: number | null;
+  /** Connection method of the challenge instance */
+  instanceEntry?: string | null;
+  /** Attachment URL */
+  url?: string | null;
+  /**
+   * Attachment file size
+   * @format int64
+   */
+  fileSize?: number | null;
+}
+
+/** Result of submitting a flag in the range */
+export interface ExerciseSubmitResult {
+  /** Answer result */
+  status?: AnswerResult;
+  /** Whether the challenge is now solved by the user */
+  isSolved?: boolean;
+  /**
+   * Fixed score of the challenge
+   * @format int32
+   */
+  score?: number;
+}
+
+/** Flag submission */
+export interface FlagSubmitModel {
+  /**
+   * Flag content
+   * @minLength 1
+   */
+  flag: string;
+}
+
+/** Exercise scoreboard */
+export interface ExerciseScoreboardModel {
+  /** Ranked items */
+  items?: ExerciseScoreboardItem[];
+  /** Number of solvers per challenge (challenge ID → count) */
+  challengeSolvedCount?: Record<string, number>;
+}
+
+/** A single scoreboard entry */
+export interface ExerciseScoreboardItem {
+  /**
+   * Rank
+   * @format int32
+   */
+  rank?: number;
+  /**
+   * User ID
+   * @format guid
+   */
+  userId?: string;
+  /** User name */
+  userName?: string;
+  /** User avatar URL */
+  avatar?: string | null;
+  /**
+   * Total score in the range
+   * @format int32
+   */
+  score?: number;
+  /**
+   * Number of solved challenges
+   * @format int32
+   */
+  solvedCount?: number;
+  /**
+   * Time of the last solve
+   * @format uint64
+   */
+  lastSolveTime?: number;
+}
+
+/**
+ * Exercise (training range) event, recorded for the admin monitor.
+ * Information includes flag submission, container start/stop, and cheating.
+ */
+export type ExerciseEvent = FormattableDataOfEventType & {
+  /**
+   * Publish time
+   * @format uint64
+   */
+  time: number;
+  /** Related username */
+  user?: string;
+};
+
+/** Formattable data */
+export interface FormattableDataOfEventType {
+  /** Data type */
+  type: EventType;
+  /** List of formatted values */
+  values: string[];
+}
+
+export interface ExerciseSubmission {
+  /** @format int32 */
+  id?: number;
+  /**
+   * Submitted answer string
+   * @minLength 1
+   * @maxLength 127
+   */
+  answer: string;
+  /** Status of the submitted answer */
+  status?: AnswerResult;
+  /**
+   * Time the answer was submitted
+   * @format uint64
+   */
+  time?: number;
+  /** Related username (serialized as "user") */
+  user?: string;
+  /** Related challenge title (serialized as "challenge") */
+  challenge?: string;
+}
+
+/** Exercise cheat information (Monitor) */
+export interface ExerciseCheatInfoModel {
+  /** User who owns the flag */
+  ownedUser?: UserInfoModel;
+  /** User who submitted the shared flag */
+  submitUser?: UserInfoModel;
+  /** The corresponding submission (serialized like the submission feed) */
+  submission?: ExerciseSubmission;
 }
 
 /** Basic game information, excluding detailed description and current team registration status */
@@ -2156,14 +2330,6 @@ export type GameEvent = FormattableDataOfEventType & {
   team?: string;
 };
 
-/** Formattable data */
-export interface FormattableDataOfEventType {
-  /** Data type */
-  type: EventType;
-  /** List of formatted values */
-  values: string[];
-}
-
 export interface Submission {
   /**
    * Submitted answer string
@@ -2387,32 +2553,6 @@ export interface ChallengeDetailModel {
    * @format uint64
    */
   deadline?: number | null;
-}
-
-export interface ClientFlagContext {
-  /**
-   * Close time of the challenge instance
-   * @format uint64
-   */
-  closeTime?: number | null;
-  /** Connection method of the challenge instance */
-  instanceEntry?: string | null;
-  /** Attachment URL */
-  url?: string | null;
-  /**
-   * Attachment file size
-   * @format int64
-   */
-  fileSize?: number | null;
-}
-
-/** Flag submission */
-export interface FlagSubmitModel {
-  /**
-   * Flag content
-   * @minLength 1
-   */
-  flag: string;
 }
 
 /** Game writeup submission information */
@@ -3036,6 +3176,21 @@ export class Api<
       }),
 
     /**
+     * @description Use this API to forcibly delete a range container instance, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminDestroyExerciseInstance
+     * @summary Delete exercise (training range) container instance
+     * @request DELETE:/api/admin/exerciseinstances/{id}
+     */
+    adminDestroyExerciseInstance: (id: string, params: RequestParams = {}) =>
+      this.request<void, RequestResponse>({
+        path: `/api/admin/exerciseinstances/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
      * @description Use this API to forcibly delete container instance, requires Admin permission
      *
      * @tags Admin
@@ -3064,6 +3219,61 @@ export class Api<
         method: "GET",
         ...params,
       }),
+
+    /**
+     * @description Use this API to get all range container instances, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminExerciseInstances
+     * @summary Get all exercise (training range) container instances
+     * @request GET:/api/admin/exerciseinstances
+     */
+    adminExerciseInstances: (params: RequestParams = {}) =>
+      this.request<
+        ArrayResponseOfExerciseContainerInstanceModel,
+        RequestResponse
+      >({
+        path: `/api/admin/exerciseinstances`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+    /**
+     * @description Use this API to get all range container instances, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminExerciseInstances
+     * @summary Get all exercise (training range) container instances
+     * @request GET:/api/admin/exerciseinstances
+     */
+    useAdminExerciseInstances: (
+      options?: SWRConfiguration,
+      doFetch: boolean = true,
+    ) =>
+      useSWR<ArrayResponseOfExerciseContainerInstanceModel, RequestResponse>(
+        doFetch ? `/api/admin/exerciseinstances` : null,
+        options,
+      ),
+
+    /**
+     * @description Use this API to get all range container instances, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminExerciseInstances
+     * @summary Get all exercise (training range) container instances
+     * @request GET:/api/admin/exerciseinstances
+     */
+    mutateAdminExerciseInstances: (
+      data?:
+        | ArrayResponseOfExerciseContainerInstanceModel
+        | Promise<ArrayResponseOfExerciseContainerInstanceModel>,
+      options?: MutatorOptions,
+    ) =>
+      mutate<ArrayResponseOfExerciseContainerInstanceModel>(
+        `/api/admin/exerciseinstances`,
+        data,
+        options,
+      ),
 
     /**
      * @description Use this API to get all files, requires Admin permission
@@ -4049,6 +4259,28 @@ export class Api<
       }),
 
     /**
+     * @description Adds a linked game challenge whose runtime content is read from the pool. Per-game scoring configuration is set here. Requires administrator privileges.
+     *
+     * @tags Edit
+     * @name EditAddGameChallengeFromPool
+     * @summary Add a pool challenge to a game as a linked challenge
+     * @request POST:/api/edit/games/{id}/challenges/frompool
+     */
+    editAddGameChallengeFromPool: (
+      id: number,
+      data: GameChallengeFromPoolModel,
+      params: RequestParams = {},
+    ) =>
+      this.request<ChallengeEditDetailModel, RequestResponse>({
+        path: `/api/edit/games/${id}/challenges/frompool`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Adding a game notice requires administrator privileges
      *
      * @tags Edit
@@ -4067,6 +4299,48 @@ export class Api<
         body: data,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Adding a pool challenge requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditAddPoolChallenge
+     * @summary Add Pool Challenge
+     * @request POST:/api/edit/pools
+     */
+    editAddPoolChallenge: (
+      data: PoolChallengeCreateModel,
+      params: RequestParams = {},
+    ) =>
+      this.request<PoolChallengeEditDetailModel, RequestResponse>({
+        path: `/api/edit/pools`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Adding pool challenge flags requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditAddPoolFlags
+     * @summary Add Pool Challenge Flags
+     * @request POST:/api/edit/pools/{id}/flags
+     */
+    editAddPoolFlags: (
+      id: number,
+      data: FlagCreateModel[],
+      params: RequestParams = {},
+    ) =>
+      this.request<void, RequestResponse>({
+        path: `/api/edit/pools/${id}/flags`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         ...params,
       }),
 
@@ -4106,6 +4380,22 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Testing a pool challenge container requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditCreatePoolTestContainer
+     * @summary Test Pool Challenge Container
+     * @request POST:/api/edit/pools/{id}/container
+     */
+    editCreatePoolTestContainer: (id: number, params: RequestParams = {}) =>
+      this.request<ContainerInfoModel, RequestResponse>({
+        path: `/api/edit/pools/${id}/container`,
+        method: "POST",
         format: "json",
         ...params,
       }),
@@ -4211,6 +4501,21 @@ export class Api<
     editDeletePost: (id: string, params: RequestParams = {}) =>
       this.request<void, RequestResponse>({
         path: `/api/edit/posts/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Destroying a test pool challenge container requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditDestroyPoolTestContainer
+     * @summary Destroy Test Pool Challenge Container
+     * @request DELETE:/api/edit/pools/{id}/container
+     */
+    editDestroyPoolTestContainer: (id: number, params: RequestParams = {}) =>
+      this.request<void, RequestResponse>({
+        path: `/api/edit/pools/${id}/container`,
         method: "DELETE",
         ...params,
       }),
@@ -4417,269 +4722,6 @@ export class Api<
       ),
 
     /**
-     * @description Adds a linked game challenge whose runtime content is read from the pool. Per-game
-     * scoring configuration is set here. Requires administrator privileges.
-     *
-     * @tags Edit
-     * @name EditAddGameChallengeFromPool
-     * @summary Add a pool challenge to a game as a linked challenge
-     * @request POST:/api/edit/games/{id}/challenges/frompool
-     */
-    editAddGameChallengeFromPool: (
-      id: number,
-      data: GameChallengeFromPoolModel,
-      params: RequestParams = {},
-    ) =>
-      this.request<ChallengeEditDetailModel, RequestResponse>({
-        path: `/api/edit/games/${id}/challenges/frompool`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Adding a pool challenge requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditAddPoolChallenge
-     * @summary Add Pool Challenge
-     * @request POST:/api/edit/pools
-     */
-    editAddPoolChallenge: (data: PoolChallengeCreateModel, params: RequestParams = {}) =>
-      this.request<PoolChallengeEditDetailModel, RequestResponse>({
-        path: `/api/edit/pools`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Adding pool challenge flags requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditAddPoolFlags
-     * @summary Add Pool Challenge Flags
-     * @request POST:/api/edit/pools/{id}/flags
-     */
-    editAddPoolFlags: (id: number, data: FlagCreateModel[], params: RequestParams = {}) =>
-      this.request<void, RequestResponse>({
-        path: `/api/edit/pools/${id}/flags`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        ...params,
-      }),
-
-    /**
-     * @description Testing a pool challenge container requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditCreatePoolTestContainer
-     * @summary Test Pool Challenge Container
-     * @request POST:/api/edit/pools/{id}/container
-     */
-    editCreatePoolTestContainer: (id: number, params: RequestParams = {}) =>
-      this.request<ContainerInfoModel, RequestResponse>({
-        path: `/api/edit/pools/${id}/container`,
-        method: "POST",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Destroying a test pool challenge container requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditDestroyPoolTestContainer
-     * @summary Destroy Test Pool Challenge Container
-     * @request DELETE:/api/edit/pools/{id}/container
-     */
-    editDestroyPoolTestContainer: (id: number, params: RequestParams = {}) =>
-      this.request<void, RequestResponse>({
-        path: `/api/edit/pools/${id}/container`,
-        method: "DELETE",
-        ...params,
-      }),
-
-    /**
-     * @description Retrieving a pool challenge requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditGetPoolChallenge
-     * @summary Get Pool Challenge
-     * @request GET:/api/edit/pools/{id}
-     */
-    editGetPoolChallenge: (id: number, params: RequestParams = {}) =>
-      this.request<PoolChallengeEditDetailModel, RequestResponse>({
-        path: `/api/edit/pools/${id}`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-    /**
-     * @description Retrieving a pool challenge requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditGetPoolChallenge
-     * @summary Get Pool Challenge
-     * @request GET:/api/edit/pools/{id}
-     */
-    useEditGetPoolChallenge: (
-      id: number,
-      options?: SWRConfiguration,
-      doFetch: boolean = true,
-    ) =>
-      useSWR<PoolChallengeEditDetailModel, RequestResponse>(
-        doFetch ? `/api/edit/pools/${id}` : null,
-        options,
-      ),
-
-    /**
-     * @description Retrieving a pool challenge requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditGetPoolChallenge
-     * @summary Get Pool Challenge
-     * @request GET:/api/edit/pools/{id}
-     */
-    mutateEditGetPoolChallenge: (
-      id: number,
-      data?: PoolChallengeEditDetailModel,
-      options?: MutatorOptions,
-    ) =>
-      mutate<PoolChallengeEditDetailModel>(
-        `/api/edit/pools/${id}`,
-        data,
-        options,
-      ),
-
-    /**
-     * @description Retrieving all pool challenges requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditGetPoolChallenges
-     * @summary Get All Pool Challenges
-     * @request GET:/api/edit/pools
-     */
-    editGetPoolChallenges: (params: RequestParams = {}) =>
-      this.request<PoolChallengeInfoModel[], RequestResponse>({
-        path: `/api/edit/pools`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-    /**
-     * @description Retrieving all pool challenges requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditGetPoolChallenges
-     * @summary Get All Pool Challenges
-     * @request GET:/api/edit/pools
-     */
-    useEditGetPoolChallenges: (
-      options?: SWRConfiguration,
-      doFetch: boolean = true,
-    ) =>
-      useSWR<PoolChallengeInfoModel[], RequestResponse>(
-        doFetch ? `/api/edit/pools` : null,
-        options,
-      ),
-
-    /**
-     * @description Retrieving all pool challenges requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditGetPoolChallenges
-     * @summary Get All Pool Challenges
-     * @request GET:/api/edit/pools
-     */
-    mutateEditGetPoolChallenges: (
-      data?: PoolChallengeInfoModel[],
-      options?: MutatorOptions,
-    ) =>
-      mutate<PoolChallengeInfoModel[]>(
-        `/api/edit/pools`,
-        data,
-        options,
-      ),
-
-    /**
-     * @description Removing a pool challenge requires administrator privileges. A challenge referenced
-     * by games cannot be removed; unlink it from all games first.
-     *
-     * @tags Edit
-     * @name EditRemovePoolChallenge
-     * @summary Remove Pool Challenge
-     * @request DELETE:/api/edit/pools/{id}
-     */
-    editRemovePoolChallenge: (id: number, params: RequestParams = {}) =>
-      this.request<void, RequestResponse>({
-        path: `/api/edit/pools/${id}`,
-        method: "DELETE",
-        ...params,
-      }),
-
-    /**
-     * @description Removing a pool challenge flag requires administrator privileges
-     *
-     * @tags Edit
-     * @name EditRemovePoolFlag
-     * @summary Remove Pool Challenge Flag
-     * @request DELETE:/api/edit/pools/{id}/flags/{fId}
-     */
-    editRemovePoolFlag: (id: number, fId: number, params: RequestParams = {}) =>
-      this.request<TaskStatus, RequestResponse>({
-        path: `/api/edit/pools/${id}/flags/${fId}`,
-        method: "DELETE",
-        ...params,
-      }),
-
-    /**
-     * @description Updating a pool challenge attachment requires administrator privileges; only for
-     * non-dynamic attachment challenges
-     *
-     * @tags Edit
-     * @name EditUpdatePoolAttachment
-     * @summary Update Pool Challenge Attachment
-     * @request POST:/api/edit/pools/{id}/attachment
-     */
-    editUpdatePoolAttachment: (id: number, data: AttachmentCreateModel, params: RequestParams = {}) =>
-      this.request<void, RequestResponse>({
-        path: `/api/edit/pools/${id}/attachment`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        ...params,
-      }),
-
-    /**
-     * @description Updating a pool challenge requires administrator privileges. Flags are not affected;
-     * use Flag-related APIs to modify. Range score changes take effect immediately.
-     *
-     * @tags Edit
-     * @name EditUpdatePoolChallenge
-     * @summary Update Pool Challenge
-     * @request PUT:/api/edit/pools/{id}
-     */
-    editUpdatePoolChallenge: (
-      id: number,
-      data: PoolChallengeUpdateModel,
-      params: RequestParams = {},
-    ) =>
-      this.request<PoolChallengeEditDetailModel, RequestResponse>({
-        path: `/api/edit/pools/${id}`,
-        method: "PUT",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
      * @description Retrieving all game challenges requires administrator privileges
      *
      * @tags Edit
@@ -4864,6 +4906,105 @@ export class Api<
       ),
 
     /**
+     * @description Retrieving a pool challenge requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditGetPoolChallenge
+     * @summary Get Pool Challenge
+     * @request GET:/api/edit/pools/{id}
+     */
+    editGetPoolChallenge: (id: number, params: RequestParams = {}) =>
+      this.request<PoolChallengeEditDetailModel, RequestResponse>({
+        path: `/api/edit/pools/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+    /**
+     * @description Retrieving a pool challenge requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditGetPoolChallenge
+     * @summary Get Pool Challenge
+     * @request GET:/api/edit/pools/{id}
+     */
+    useEditGetPoolChallenge: (
+      id: number,
+      options?: SWRConfiguration,
+      doFetch: boolean = true,
+    ) =>
+      useSWR<PoolChallengeEditDetailModel, RequestResponse>(
+        doFetch ? `/api/edit/pools/${id}` : null,
+        options,
+      ),
+
+    /**
+     * @description Retrieving a pool challenge requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditGetPoolChallenge
+     * @summary Get Pool Challenge
+     * @request GET:/api/edit/pools/{id}
+     */
+    mutateEditGetPoolChallenge: (
+      id: number,
+      data?:
+        | PoolChallengeEditDetailModel
+        | Promise<PoolChallengeEditDetailModel>,
+      options?: MutatorOptions,
+    ) =>
+      mutate<PoolChallengeEditDetailModel>(
+        `/api/edit/pools/${id}`,
+        data,
+        options,
+      ),
+
+    /**
+     * @description Retrieving all pool challenges requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditGetPoolChallenges
+     * @summary Get All Pool Challenges
+     * @request GET:/api/edit/pools
+     */
+    editGetPoolChallenges: (params: RequestParams = {}) =>
+      this.request<PoolChallengeInfoModel[], RequestResponse>({
+        path: `/api/edit/pools`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+    /**
+     * @description Retrieving all pool challenges requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditGetPoolChallenges
+     * @summary Get All Pool Challenges
+     * @request GET:/api/edit/pools
+     */
+    useEditGetPoolChallenges: (
+      options?: SWRConfiguration,
+      doFetch: boolean = true,
+    ) =>
+      useSWR<PoolChallengeInfoModel[], RequestResponse>(
+        doFetch ? `/api/edit/pools` : null,
+        options,
+      ),
+
+    /**
+     * @description Retrieving all pool challenges requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditGetPoolChallenges
+     * @summary Get All Pool Challenges
+     * @request GET:/api/edit/pools
+     */
+    mutateEditGetPoolChallenges: (
+      data?: PoolChallengeInfoModel[] | Promise<PoolChallengeInfoModel[]>,
+      options?: MutatorOptions,
+    ) => mutate<PoolChallengeInfoModel[]>(`/api/edit/pools`, data, options),
+
+    /**
      * @description Import game from a ZIP package; requires Admin permission
      *
      * @tags Edit
@@ -4924,6 +5065,37 @@ export class Api<
       this.request<void, RequestResponse>({
         path: `/api/edit/games/${id}/challenges/${cId}`,
         method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Removing a pool challenge requires administrator privileges. A challenge referenced by games cannot be removed; unlink it from all games first.
+     *
+     * @tags Edit
+     * @name EditRemovePoolChallenge
+     * @summary Remove Pool Challenge
+     * @request DELETE:/api/edit/pools/{id}
+     */
+    editRemovePoolChallenge: (id: number, params: RequestParams = {}) =>
+      this.request<void, RequestResponse>({
+        path: `/api/edit/pools/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Removing a pool challenge flag requires administrator privileges
+     *
+     * @tags Edit
+     * @name EditRemovePoolFlag
+     * @summary Remove Pool Challenge Flag
+     * @request DELETE:/api/edit/pools/{id}/flags/{fId}
+     */
+    editRemovePoolFlag: (id: number, fId: number, params: RequestParams = {}) =>
+      this.request<TaskStatus, RequestResponse>({
+        path: `/api/edit/pools/${id}/flags/${fId}`,
+        method: "DELETE",
+        format: "json",
         ...params,
       }),
 
@@ -5067,6 +5239,49 @@ export class Api<
       }),
 
     /**
+     * @description Updating a pool challenge attachment requires administrator privileges; only for non-dynamic attachment challenges
+     *
+     * @tags Edit
+     * @name EditUpdatePoolAttachment
+     * @summary Update Pool Challenge Attachment
+     * @request POST:/api/edit/pools/{id}/attachment
+     */
+    editUpdatePoolAttachment: (
+      id: number,
+      data: AttachmentCreateModel,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, RequestResponse>({
+        path: `/api/edit/pools/${id}/attachment`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Updating a pool challenge requires administrator privileges. Flags are not affected; use Flag-related APIs to modify. Range score changes take effect immediately.
+     *
+     * @tags Edit
+     * @name EditUpdatePoolChallenge
+     * @summary Update Pool Challenge
+     * @request PUT:/api/edit/pools/{id}
+     */
+    editUpdatePoolChallenge: (
+      id: number,
+      data: PoolChallengeUpdateModel,
+      params: RequestParams = {},
+    ) =>
+      this.request<PoolChallengeEditDetailModel, RequestResponse>({
+        path: `/api/edit/pools/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Updating a post requires administrator privileges
      *
      * @tags Edit
@@ -5090,11 +5305,61 @@ export class Api<
   };
   exercise = {
     /**
-     * @description Create a container for a range challenge
+     * No description
+     *
+     * @tags Exercise
+     * @name ExerciseCheatInfo
+     * @summary Get range cheat information, requires Monitor permission
+     * @request GET:/api/exercise/cheatinfo
+     */
+    exerciseCheatInfo: (params: RequestParams = {}) =>
+      this.request<ExerciseCheatInfoModel[], RequestResponse>({
+        path: `/api/exercise/cheatinfo`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+    /**
+     * No description
+     *
+     * @tags Exercise
+     * @name ExerciseCheatInfo
+     * @summary Get range cheat information, requires Monitor permission
+     * @request GET:/api/exercise/cheatinfo
+     */
+    useExerciseCheatInfo: (
+      options?: SWRConfiguration,
+      doFetch: boolean = true,
+    ) =>
+      useSWR<ExerciseCheatInfoModel[], RequestResponse>(
+        doFetch ? `/api/exercise/cheatinfo` : null,
+        options,
+      ),
+
+    /**
+     * No description
+     *
+     * @tags Exercise
+     * @name ExerciseCheatInfo
+     * @summary Get range cheat information, requires Monitor permission
+     * @request GET:/api/exercise/cheatinfo
+     */
+    mutateExerciseCheatInfo: (
+      data?: ExerciseCheatInfoModel[] | Promise<ExerciseCheatInfoModel[]>,
+      options?: MutatorOptions,
+    ) =>
+      mutate<ExerciseCheatInfoModel[]>(
+        `/api/exercise/cheatinfo`,
+        data,
+        options,
+      ),
+
+    /**
+     * No description
      *
      * @tags Exercise
      * @name ExerciseCreateContainer
-     * @summary Create range challenge container
+     * @summary Create a container for a range challenge
      * @request POST:/api/exercise/{id}/container
      */
     exerciseCreateContainer: (id: number, params: RequestParams = {}) =>
@@ -5106,11 +5371,11 @@ export class Api<
       }),
 
     /**
-     * @description Delete a range challenge container
+     * No description
      *
      * @tags Exercise
      * @name ExerciseDeleteContainer
-     * @summary Delete range challenge container
+     * @summary Delete a range challenge container
      * @request DELETE:/api/exercise/{id}/container
      */
     exerciseDeleteContainer: (id: number, params: RequestParams = {}) =>
@@ -5121,11 +5386,123 @@ export class Api<
       }),
 
     /**
-     * @description Extend the lifetime of a range challenge container
+     * @description The training range is always open, so there is no start-time window check (unlike the game monitor endpoints).
+     *
+     * @tags Exercise
+     * @name ExerciseEvents
+     * @summary Get all range events, requires Monitor permission
+     * @request GET:/api/exercise/events
+     */
+    exerciseEvents: (
+      query?: {
+        /**
+         * Hide container start/destroy events
+         * @default false
+         */
+        hideContainer?: boolean;
+        /**
+         * Number of events to return, max 100
+         * @format int32
+         * @min 0
+         * @max 100
+         * @default 100
+         */
+        count?: number;
+        /**
+         * Events to skip
+         * @format int32
+         * @default 0
+         */
+        skip?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ExerciseEvent[], RequestResponse>({
+        path: `/api/exercise/events`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+    /**
+     * @description The training range is always open, so there is no start-time window check (unlike the game monitor endpoints).
+     *
+     * @tags Exercise
+     * @name ExerciseEvents
+     * @summary Get all range events, requires Monitor permission
+     * @request GET:/api/exercise/events
+     */
+    useExerciseEvents: (
+      query?: {
+        /**
+         * Hide container start/destroy events
+         * @default false
+         */
+        hideContainer?: boolean;
+        /**
+         * Number of events to return, max 100
+         * @format int32
+         * @min 0
+         * @max 100
+         * @default 100
+         */
+        count?: number;
+        /**
+         * Events to skip
+         * @format int32
+         * @default 0
+         */
+        skip?: number;
+      },
+      options?: SWRConfiguration,
+      doFetch: boolean = true,
+    ) =>
+      useSWR<ExerciseEvent[], RequestResponse>(
+        doFetch ? [`/api/exercise/events`, query] : null,
+        options,
+      ),
+
+    /**
+     * @description The training range is always open, so there is no start-time window check (unlike the game monitor endpoints).
+     *
+     * @tags Exercise
+     * @name ExerciseEvents
+     * @summary Get all range events, requires Monitor permission
+     * @request GET:/api/exercise/events
+     */
+    mutateExerciseEvents: (
+      query?: {
+        /**
+         * Hide container start/destroy events
+         * @default false
+         */
+        hideContainer?: boolean;
+        /**
+         * Number of events to return, max 100
+         * @format int32
+         * @min 0
+         * @max 100
+         * @default 100
+         */
+        count?: number;
+        /**
+         * Events to skip
+         * @format int32
+         * @default 0
+         */
+        skip?: number;
+      },
+      data?: ExerciseEvent[] | Promise<ExerciseEvent[]>,
+      options?: MutatorOptions,
+    ) =>
+      mutate<ExerciseEvent[]>([`/api/exercise/events`, query], data, options),
+
+    /**
+     * No description
      *
      * @tags Exercise
      * @name ExerciseExtendContainerLifetime
-     * @summary Extend range challenge container
+     * @summary Extend the lifetime of a range challenge container
      * @request POST:/api/exercise/{id}/container/extend
      */
     exerciseExtendContainerLifetime: (id: number, params: RequestParams = {}) =>
@@ -5137,11 +5514,11 @@ export class Api<
       }),
 
     /**
-     * @description Get a range challenge detail, lazily creating the instance and dispatching dynamic flags
+     * No description
      *
      * @tags Exercise
      * @name ExerciseGetChallenge
-     * @summary Get range challenge detail
+     * @summary Get a range challenge detail, lazily creating the instance and dispatching dynamic flags
      * @request GET:/api/exercise/{id}
      */
     exerciseGetChallenge: (id: number, params: RequestParams = {}) =>
@@ -5152,11 +5529,11 @@ export class Api<
         ...params,
       }),
     /**
-     * @description Get a range challenge detail, lazily creating the instance and dispatching dynamic flags
+     * No description
      *
      * @tags Exercise
      * @name ExerciseGetChallenge
-     * @summary Get range challenge detail
+     * @summary Get a range challenge detail, lazily creating the instance and dispatching dynamic flags
      * @request GET:/api/exercise/{id}
      */
     useExerciseGetChallenge: (
@@ -5170,30 +5547,25 @@ export class Api<
       ),
 
     /**
-     * @description Get a range challenge detail, lazily creating the instance and dispatching dynamic flags
+     * No description
      *
      * @tags Exercise
      * @name ExerciseGetChallenge
-     * @summary Get range challenge detail
+     * @summary Get a range challenge detail, lazily creating the instance and dispatching dynamic flags
      * @request GET:/api/exercise/{id}
      */
     mutateExerciseGetChallenge: (
       id: number,
       data?: ExerciseDetailModel | Promise<ExerciseDetailModel>,
       options?: MutatorOptions,
-    ) =>
-      mutate<ExerciseDetailModel>(
-        `/api/exercise/${id}`,
-        data,
-        options,
-      ),
+    ) => mutate<ExerciseDetailModel>(`/api/exercise/${id}`, data, options),
 
     /**
-     * @description Get all range challenges grouped by category
+     * @description Only challenges that are both globally enabled and enabled in the range are returned. The instance is lazily created when the user opens a challenge detail.
      *
      * @tags Exercise
      * @name ExerciseGetChallenges
-     * @summary Get range challenges
+     * @summary Get all range challenges grouped by category
      * @request GET:/api/exercise
      */
     exerciseGetChallenges: (params: RequestParams = {}) =>
@@ -5204,11 +5576,11 @@ export class Api<
         ...params,
       }),
     /**
-     * @description Get all range challenges grouped by category
+     * @description Only challenges that are both globally enabled and enabled in the range are returned. The instance is lazily created when the user opens a challenge detail.
      *
      * @tags Exercise
      * @name ExerciseGetChallenges
-     * @summary Get range challenges
+     * @summary Get all range challenges grouped by category
      * @request GET:/api/exercise
      */
     useExerciseGetChallenges: (
@@ -5221,15 +5593,17 @@ export class Api<
       ),
 
     /**
-     * @description Get all range challenges grouped by category
+     * @description Only challenges that are both globally enabled and enabled in the range are returned. The instance is lazily created when the user opens a challenge detail.
      *
      * @tags Exercise
      * @name ExerciseGetChallenges
-     * @summary Get range challenges
+     * @summary Get all range challenges grouped by category
      * @request GET:/api/exercise
      */
     mutateExerciseGetChallenges: (
-      data?: Record<string, ExerciseInfoModel[]>,
+      data?:
+        | Record<string, ExerciseInfoModel[]>
+        | Promise<Record<string, ExerciseInfoModel[]>>,
       options?: MutatorOptions,
     ) =>
       mutate<Record<string, ExerciseInfoModel[]>>(
@@ -5239,11 +5613,11 @@ export class Api<
       ),
 
     /**
-     * @description Get the global personal scoreboard of the range
+     * No description
      *
      * @tags Exercise
      * @name ExerciseGetScoreboard
-     * @summary Get range scoreboard
+     * @summary Get the global personal scoreboard of the range
      * @request GET:/api/exercise/scoreboard
      */
     exerciseGetScoreboard: (params: RequestParams = {}) =>
@@ -5254,11 +5628,11 @@ export class Api<
         ...params,
       }),
     /**
-     * @description Get the global personal scoreboard of the range
+     * No description
      *
      * @tags Exercise
      * @name ExerciseGetScoreboard
-     * @summary Get range scoreboard
+     * @summary Get the global personal scoreboard of the range
      * @request GET:/api/exercise/scoreboard
      */
     useExerciseGetScoreboard: (
@@ -5271,15 +5645,15 @@ export class Api<
       ),
 
     /**
-     * @description Get the global personal scoreboard of the range
+     * No description
      *
      * @tags Exercise
      * @name ExerciseGetScoreboard
-     * @summary Get range scoreboard
+     * @summary Get the global personal scoreboard of the range
      * @request GET:/api/exercise/scoreboard
      */
     mutateExerciseGetScoreboard: (
-      data?: ExerciseScoreboardModel,
+      data?: ExerciseScoreboardModel | Promise<ExerciseScoreboardModel>,
       options?: MutatorOptions,
     ) =>
       mutate<ExerciseScoreboardModel>(
@@ -5289,14 +5663,125 @@ export class Api<
       ),
 
     /**
-     * @description Submit a flag in the range, the result is returned synchronously
+     * No description
+     *
+     * @tags Exercise
+     * @name ExerciseSubmissions
+     * @summary Get all range submissions, requires Monitor permission
+     * @request GET:/api/exercise/submissions
+     */
+    exerciseSubmissions: (
+      query?: {
+        /** Filter by answer result */
+        type?: AnswerResult | null;
+        /**
+         * Number of submissions to return, max 100
+         * @format int32
+         * @min 0
+         * @max 100
+         * @default 100
+         */
+        count?: number;
+        /**
+         * Submissions to skip
+         * @format int32
+         * @default 0
+         */
+        skip?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ExerciseSubmission[], RequestResponse>({
+        path: `/api/exercise/submissions`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+    /**
+     * No description
+     *
+     * @tags Exercise
+     * @name ExerciseSubmissions
+     * @summary Get all range submissions, requires Monitor permission
+     * @request GET:/api/exercise/submissions
+     */
+    useExerciseSubmissions: (
+      query?: {
+        /** Filter by answer result */
+        type?: AnswerResult | null;
+        /**
+         * Number of submissions to return, max 100
+         * @format int32
+         * @min 0
+         * @max 100
+         * @default 100
+         */
+        count?: number;
+        /**
+         * Submissions to skip
+         * @format int32
+         * @default 0
+         */
+        skip?: number;
+      },
+      options?: SWRConfiguration,
+      doFetch: boolean = true,
+    ) =>
+      useSWR<ExerciseSubmission[], RequestResponse>(
+        doFetch ? [`/api/exercise/submissions`, query] : null,
+        options,
+      ),
+
+    /**
+     * No description
+     *
+     * @tags Exercise
+     * @name ExerciseSubmissions
+     * @summary Get all range submissions, requires Monitor permission
+     * @request GET:/api/exercise/submissions
+     */
+    mutateExerciseSubmissions: (
+      query?: {
+        /** Filter by answer result */
+        type?: AnswerResult | null;
+        /**
+         * Number of submissions to return, max 100
+         * @format int32
+         * @min 0
+         * @max 100
+         * @default 100
+         */
+        count?: number;
+        /**
+         * Submissions to skip
+         * @format int32
+         * @default 0
+         */
+        skip?: number;
+      },
+      data?: ExerciseSubmission[] | Promise<ExerciseSubmission[]>,
+      options?: MutatorOptions,
+    ) =>
+      mutate<ExerciseSubmission[]>(
+        [`/api/exercise/submissions`, query],
+        data,
+        options,
+      ),
+
+    /**
+     * No description
      *
      * @tags Exercise
      * @name ExerciseSubmit
-     * @summary Submit range flag
+     * @summary Submit a flag in the range, the result is returned synchronously
      * @request POST:/api/exercise/{id}
      */
-    exerciseSubmit: (id: number, data: FlagSubmitModel, params: RequestParams = {}) =>
+    exerciseSubmit: (
+      id: number,
+      data: FlagSubmitModel,
+      params: RequestParams = {},
+    ) =>
       this.request<ExerciseSubmitResult, RequestResponse>({
         path: `/api/exercise/${id}`,
         method: "POST",

@@ -15,7 +15,7 @@ import {
   Title,
 } from '@mantine/core'
 import { useLocalStorage } from '@mantine/hooks'
-import { mdiPuzzle, mdiTrophyOutline } from '@mdi/js'
+import { mdiChartLine, mdiPuzzle, mdiTrophyOutline } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import cx from 'clsx'
 import { FC, useState } from 'react'
@@ -121,13 +121,24 @@ const Exercise: FC = () => {
           <Stack gap={0}>
             <Title order={2}>{t('exercise.title')}</Title>
           </Stack>
-          <Button
-            component={Link}
-            to="/exercise/scoreboard"
-            leftSection={<Icon path={mdiTrophyOutline} size={1} />}
-          >
-            {t('exercise.button.scoreboard')}
-          </Button>
+          <Group gap="sm" wrap="nowrap">
+            <Button
+              component={Link}
+              to="/exercise/scoreboard"
+              leftSection={<Icon path={mdiTrophyOutline} size={1} />}
+            >
+              {t('exercise.button.scoreboard')}
+            </Button>
+            <WithRole requiredRole={Role.Monitor}>
+              <Button
+                component={Link}
+                to="/exercise/monitor/events"
+                leftSection={<Icon path={mdiChartLine} size={1} />}
+              >
+                {t('exercise.button.monitor')}
+              </Button>
+            </WithRole>
+          </Group>
         </Group>
 
         <Group gap="sm" justify="space-between" align="flex-start" wrap="nowrap">
@@ -206,7 +217,7 @@ const Exercise: FC = () => {
                 cols={{ base: 3, w18: 4, w24: 6, w30: 8, w36: 10, w42: 12, w48: 14 }}
               >
                 {currentChallenges?.map((chal) => {
-                  const cateData = challengeCategoryLabelMap.get(chal.category)
+                  const cateData = challengeCategoryLabelMap.get(chal.category ?? ChallengeCategory.Misc)
                   return (
                     <Card
                       key={chal.id}
@@ -266,9 +277,9 @@ const Exercise: FC = () => {
             withCloseButton={false}
             onClose={() => setDetailOpened(false)}
             exerciseId={challenge.id!}
-            title={challenge.title}
-            score={challenge.score}
-            solved={challenge.isSolved}
+            title={challenge.title ?? ''}
+            score={challenge.score ?? 0}
+            solved={challenge.isSolved ?? false}
             cateData={challengeCategoryLabelMap.get(challenge.category ?? ChallengeCategory.Misc)!}
           />
         )}

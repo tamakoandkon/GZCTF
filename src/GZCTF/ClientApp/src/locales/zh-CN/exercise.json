@@ -2,13 +2,21 @@
   "title": "靶场",
   "empty": "暂无可用的靶场题目",
   "tab": {
-    "all": "全部"
+    "all": "全部",
+    "monitor": {
+      "index": "靶场监控",
+      "events": "事件监控",
+      "submissions": "提交记录",
+      "cheatinfo": "作弊信息",
+      "instances": "容器实例"
+    }
   },
   "button": {
     "hide_solved": "隐藏已解出",
     "show_solved": "显示已解出",
     "scoreboard": "排行榜",
-    "challenges": "题目列表"
+    "challenges": "题目列表",
+    "monitor": "监控"
   },
   "card": {
     "accepted_count": "{{count}} 人已解出",
@@ -33,5 +41,51 @@
     "solved_count": "解出题数",
     "last_solve_time": "最后解出时间",
     "empty": "暂无排行数据"
+  },
+  "event": {
+    "answer": {
+      "accepted": "答案正确",
+      "wrong": "答案错误",
+      "cheat": "作弊行为",
+      "submitted": "成功提交",
+      "not_found": "未知实例"
+    },
+    "flag_submit": "[{{status}}] {{flag}} [{{chal}}#{{id}}]",
+    "cheat_detected": "题目 [{{chal}}] 疑似发生违规,用户 [{{user}}] 使用了 [{{source_user}}] 的答案",
+    "container": {
+      "start": "{{chal}}#{{id}} 开启题目实例",
+      "destroy": "{{chal}}#{{id}} 销毁题目实例"
+    }
+  },
+  "notification": {
+    "connected": {
+      "event": "实时事件连接成功",
+      "submission": "实时提交连接成功"
+    },
+    "fetch_failed": {
+      "event": "获取事件失败",
+      "submission": "获取提交失败",
+      "cheatinfo": "获取作弊信息失败"
+    }
+  },
+  "content": {
+    "hide_container_events": {
+      "label": "隐藏容器事件",
+      "description": "隐藏容器启动/销毁事件"
+    },
+    "no_cheat": {
+      "title": "暂时没有作弊信息",
+      "comment": "看起来大家都很老实呢"
+    },
+    "team_view": {
+      "table": "表格",
+      "accordion": "按用户分组"
+    }
+  },
+  "label": {
+    "cheat_info": {
+      "owned_user": "原始用户",
+      "submit_user": "提交用户"
+    }
   }
 }
