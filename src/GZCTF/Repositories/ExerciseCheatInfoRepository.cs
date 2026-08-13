@@ -28,7 +28,6 @@ public class ExerciseCheatInfoRepository(AppDbContext context)
             ExerciseId = submission.ExerciseId,
             SubmitUserId = submission.UserId,
             SourceUserId = source.UserId,
-            SourceUser = source.User,
             ExerciseSubmissionId = submission.Id
         };
 
@@ -37,6 +36,11 @@ public class ExerciseCheatInfoRepository(AppDbContext context)
         // submission is a tracked entity passed in from the controller
         submission.Status = AnswerResult.CheatDetected;
         await SaveAsync(token);
+
+        // source.User was materialized by an AsNoTracking query; load it explicitly
+        // so the caller can read the flag owner's name (assigning the untracked
+        // entity directly would make EF try to INSERT the user again).
+        await Context.Entry(cheatInfo).Reference(c => c.SourceUser).LoadAsync(token);
 
         return cheatInfo;
     }

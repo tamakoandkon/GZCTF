@@ -49,6 +49,8 @@ namespace GZCTF.Utils;
 [JsonSerializable(typeof(ScoreboardModel))]
 [JsonSerializable(typeof(GameEvent[]))]
 [JsonSerializable(typeof(Submission[]))]
+[JsonSerializable(typeof(ExerciseEvent[]))]
+[JsonSerializable(typeof(ExerciseSubmission[]))]
 [JsonSerializable(typeof(CheatInfoModel[]))]
 [JsonSerializable(typeof(ChallengeTrafficModel[]))]
 [JsonSerializable(typeof(TeamTrafficModel[]))]
