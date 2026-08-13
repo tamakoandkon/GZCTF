@@ -661,10 +661,27 @@ export const getInputNumber = (value: string | number, float?: boolean): number 
 
 /**
  * The backend serializes the Difficulty enum as its string name (JsonStringEnumConverter),
- * while the Api.ts Difficulty is a numeric enum. Normalize either form to the numeric value.
+ * and Api.ts Difficulty is a string enum. DifficultyOrder gives the numeric order for sorting.
  */
-export const toDifficultyNumber = (difficulty: unknown): Difficulty => {
-  if (typeof difficulty === 'number') return difficulty as Difficulty
-  if (typeof difficulty === 'string') return (Difficulty as unknown as Record<string, Difficulty>)[difficulty] ?? Difficulty.Normal
-  return Difficulty.Normal
+const DifficultyOrder: Difficulty[] = [
+  Difficulty.Baby,
+  Difficulty.Trivial,
+  Difficulty.Easy,
+  Difficulty.Normal,
+  Difficulty.Medium,
+  Difficulty.Hard,
+  Difficulty.Expert,
+  Difficulty.Insane,
+]
+
+/**
+ * Resolve a difficulty value (from the API or a legacy numeric form) to its sort order.
+ */
+export const difficultyIndex = (difficulty: Difficulty | string | null | undefined): number => {
+  if (typeof difficulty === 'number') {
+    const fallback = DifficultyOrder.indexOf(Difficulty.Normal)
+    return difficulty >= 0 && difficulty < DifficultyOrder.length ? difficulty : fallback
+  }
+  const idx = difficulty ? DifficultyOrder.indexOf(difficulty as Difficulty) : -1
+  return idx < 0 ? DifficultyOrder.indexOf(Difficulty.Normal) : idx
 }

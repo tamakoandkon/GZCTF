@@ -23,7 +23,7 @@ import { FC, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { AdminPage } from '@Components/admin/AdminPage'
-import { showErrorMsg, toDifficultyNumber } from '@Utils/Shared'
+import { difficultyIndex, showErrorMsg } from '@Utils/Shared'
 import {
   ChallengeCategoryItem,
   ChallengeCategoryList,
@@ -35,7 +35,7 @@ import { useEditPools } from '@Hooks/useEdit'
 import api, { ChallengeCategory, ChallengeType, Difficulty } from '@Api'
 
 const difficultyLabel = (t: (k: string) => string, difficulty: Difficulty | string | null | undefined) =>
-  t(`exercise.difficulty.${Difficulty[toDifficultyNumber(difficulty)].toLowerCase()}`)
+  t(`exercise.difficulty.${difficulty?.toLowerCase() ?? 'normal'}`)
 
 type SortKey = 'title' | 'category' | 'type' | 'difficulty' | 'rangeScore' | 'referencedGamesCount'
 
@@ -67,7 +67,7 @@ const PoolIndex: FC = () => {
   const [title, setTitle] = useInputState('')
   const [category, setCategory] = useState<string | null>(null)
   const [type, setType] = useState<string | null>(null)
-  const [difficulty, setDifficulty] = useState<number>(Difficulty.Normal)
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(Difficulty.Normal)
   const [disabled, setDisabled] = useState(false)
 
   // list filter + sort
@@ -105,7 +105,7 @@ const PoolIndex: FC = () => {
             cmp = (a.type ?? '').localeCompare(b.type ?? '')
             break
           case 'difficulty':
-            cmp = toDifficultyNumber(a.difficulty) - toDifficultyNumber(b.difficulty)
+            cmp = difficultyIndex(a.difficulty) - difficultyIndex(b.difficulty)
             break
           case 'rangeScore':
             cmp = (a.rangeScore ?? 0) - (b.rangeScore ?? 0)
@@ -120,9 +120,10 @@ const PoolIndex: FC = () => {
     return list
   }, [pools, typeFilter, search, sortKey, sortOrder])
 
-  const difficultyData = Object.values(Difficulty)
-    .filter((v) => typeof v === 'number')
-    .map((v) => ({ value: String(v), label: t(`exercise.difficulty.${Difficulty[v as number].toLowerCase()}`) }))
+  const difficultyData = Object.values(Difficulty).map((v) => ({
+    value: String(v),
+    label: t(`exercise.difficulty.${String(v).toLowerCase()}`),
+  }))
 
   const onCreate = async () => {
     if (!title || !category || !type) return
@@ -133,7 +134,7 @@ const PoolIndex: FC = () => {
         title,
         category: category as ChallengeCategory,
         type: type as ChallengeType,
-        difficulty,
+        difficulty: difficulty ?? undefined,
       })
       showNotification({
         color: 'teal',
@@ -288,8 +289,8 @@ const PoolIndex: FC = () => {
           </Table.Thead>
           <Table.Tbody>
             {filteredPools.map((pool) => {
-              const cateData = challengeCategoryLabelMap.get(pool.category)
-              const typeData = challengeTypeLabelMap.get(pool.type)
+              const cateData = challengeCategoryLabelMap.get(pool.category ?? ChallengeCategory.Misc)
+              const typeData = challengeTypeLabelMap.get(pool.type!)
               return (
                 <Table.Tr key={pool.id}>
                   <Table.Td>
@@ -317,7 +318,7 @@ const PoolIndex: FC = () => {
                   <Table.Td>
                     <Switch
                       checked={pool.rangeEnabled}
-                      onChange={() => onToggleRange(pool.id!, pool.rangeEnabled)}
+                      onChange={() => onToggleRange(pool.id!, pool.rangeEnabled ?? false)}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -392,7 +393,7 @@ const PoolIndex: FC = () => {
           <Select
             label={t('admin.content.pool.difficulty')}
             value={String(difficulty)}
-            onChange={(v) => setDifficulty(Number(v))}
+            onChange={(v) => setDifficulty(v as Difficulty | null)}
             data={difficultyData}
           />
           <Button fullWidth disabled={disabled} onClick={onCreate}>

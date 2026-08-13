@@ -32,7 +32,6 @@ import {
   NetworkModeItem,
   NetworkModeList,
   showErrorMsg,
-  toDifficultyNumber,
   useNetworkModeMap,
 } from '@Utils/Shared'
 import {
@@ -71,23 +70,23 @@ const PoolChallengeEdit: FC = () => {
   const [deadline, setDeadline] = useState<dayjs.Dayjs | null>(pool?.deadlineUtc ? dayjs(pool?.deadlineUtc) : null)
   const [category, setCategory] = useState<string | null>(pool?.category ?? ChallengeCategory.Misc)
   const [networkMode, setNetworkMode] = useState<string | null>(pool?.networkMode ?? NetworkMode.Open)
-  const [difficulty, setDifficulty] = useState<number>(pool?.difficulty ?? Difficulty.Normal)
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(pool?.difficulty ?? Difficulty.Normal)
   const [disabled, setDisabled] = useState(false)
 
   useEffect(() => {
     if (pool) {
-      // the backend serializes Difficulty as its string name; normalize to the numeric enum
-      setPoolInfo({ ...pool, difficulty: toDifficultyNumber(pool.difficulty) })
+      setPoolInfo({ ...pool, difficulty: pool.difficulty ?? Difficulty.Normal })
       setCategory(pool.category)
       setNetworkMode(pool.networkMode ?? NetworkMode.Open)
-      setDifficulty(toDifficultyNumber(pool.difficulty))
+      setDifficulty(pool.difficulty ?? Difficulty.Normal)
       setDeadline(pool.deadlineUtc ? dayjs(pool.deadlineUtc) : null)
     }
   }, [pool])
 
-  const difficultyData = Object.values(Difficulty)
-    .filter((v) => typeof v === 'number')
-    .map((v) => ({ value: String(v), label: t(`exercise.difficulty.${Difficulty[v as number].toLowerCase()}`) }))
+  const difficultyData = Object.values(Difficulty).map((v) => ({
+    value: String(v),
+    label: t(`exercise.difficulty.${String(v).toLowerCase()}`),
+  }))
 
   const onUpdate = async (model: PoolChallengeUpdateModel, noFeedback?: boolean) => {
     if (!model) return
@@ -336,9 +335,8 @@ const PoolChallengeEdit: FC = () => {
               value={String(difficulty)}
               disabled={disabled}
               onChange={(v) => {
-                const num = Number(v)
-                setDifficulty(num)
-                setPoolInfo({ ...poolInfo, difficulty: num })
+                setDifficulty(v as Difficulty | null)
+                setPoolInfo({ ...poolInfo, difficulty: v as Difficulty })
               }}
               data={difficultyData}
             />

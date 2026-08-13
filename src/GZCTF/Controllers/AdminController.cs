@@ -39,6 +39,7 @@ public class AdminController(
     IGameRepository gameRepository,
     ITeamRepository teamRepository,
     IContainerRepository containerRepository,
+    IExerciseEventRepository exerciseEventRepository,
     IServiceProvider serviceProvider,
     IParticipationRepository participationRepository,
     IStringLocalizer<Program> localizer) : ControllerBase
@@ -676,6 +677,64 @@ public class AdminController(
 
         return BadRequest(
             new RequestResponse(localizer[nameof(Resources.Program.Admin_ContainerInstanceDestroyFailed)]));
+    }
+
+    /// <summary>
+    /// Get all exercise (training range) container instances
+    /// </summary>
+    /// <remarks>
+    /// Use this API to get all range container instances, requires Admin permission
+    /// </remarks>
+    /// <response code="200">Instance list</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    [HttpGet("ExerciseInstances")]
+    [ProducesResponseType(typeof(ArrayResponse<ExerciseContainerInstanceModel>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExerciseInstances(CancellationToken token = default) =>
+        Ok(new ArrayResponse<ExerciseContainerInstanceModel>(
+            (await containerRepository.GetExerciseContainerInstances(token)).Select(
+                ExerciseContainerInstanceModel.FromContainer).ToArray()));
+
+    /// <summary>
+    /// Delete exercise (training range) container instance
+    /// </summary>
+    /// <remarks>
+    /// Use this API to forcibly delete a range container instance, requires Admin permission
+    /// </remarks>
+    /// <response code="200">Successfully retrieved</response>
+    /// <response code="400">Container instance destruction failed</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    /// <response code="404">Container instance not found</response>
+    [HttpDelete("ExerciseInstances/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    [SuppressMessage("ReSharper", "RouteTemplates.ParameterTypeCanBeMadeStricter")]
+    public async Task<IActionResult> DestroyExerciseInstance(Guid id, CancellationToken token = default)
+    {
+        var container = await containerRepository.GetExerciseContainerById(id, token);
+
+        if (container is null)
+            return NotFound(
+                new RequestResponse(localizer[nameof(Resources.Program.Admin_ContainerInstanceNotFound)],
+                    StatusCodes.Status404NotFound));
+
+        if (!await containerRepository.DestroyContainer(container, token))
+            return BadRequest(
+                new RequestResponse(localizer[nameof(Resources.Program.Admin_ContainerInstanceDestroyFailed)]));
+
+        var instance = container.ExerciseInstance;
+        if (instance is not null)
+            await exerciseEventRepository.AddEvent(new()
+            {
+                Type = EventType.ContainerDestroy,
+                UserId = instance.UserId,
+                ExerciseId = instance.ExerciseId,
+                Values = [instance.ExerciseId.ToString(), instance.Exercise.Title]
+            }, token);
+
+        return Ok();
     }
 
     /// <summary>

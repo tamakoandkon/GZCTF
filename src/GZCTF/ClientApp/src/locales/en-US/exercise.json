@@ -2,13 +2,21 @@
   "title": "Training",
   "empty": "No challenges available in the training range",
   "tab": {
-    "all": "All"
+    "all": "All",
+    "monitor": {
+      "index": "Training Monitor",
+      "events": "Events",
+      "submissions": "Submissions",
+      "cheatinfo": "Cheat Info",
+      "instances": "Instances"
+    }
   },
   "button": {
     "hide_solved": "Hide solved",
     "show_solved": "Show solved",
     "scoreboard": "Scoreboard",
-    "challenges": "Challenges"
+    "challenges": "Challenges",
+    "monitor": "Monitor"
   },
   "card": {
     "accepted_count": "{{count}} solves",
@@ -33,5 +41,51 @@
     "solved_count": "Solved",
     "last_solve_time": "Last Solve",
     "empty": "No scoreboard data yet"
+  },
+  "event": {
+    "answer": {
+      "accepted": "Accepted",
+      "wrong": "Wrong Answer",
+      "cheat": "Cheating",
+      "submitted": "Submitted",
+      "not_found": "Not Found"
+    },
+    "flag_submit": "[{{status}}] {{flag}} [#{{id}} {{chal}}]",
+    "cheat_detected": "Suspected cheating on [#{{chal}}]: user [{{user}}] submitted the flag of [{{source_user}}]",
+    "container": {
+      "start": "Started container for {{chal}}#{{id}}",
+      "destroy": "Destroyed container for {{chal}}#{{id}}"
+    }
+  },
+  "notification": {
+    "connected": {
+      "event": "Realtime event connection established",
+      "submission": "Realtime submission connection established"
+    },
+    "fetch_failed": {
+      "event": "Failed to fetch events",
+      "submission": "Failed to fetch submissions",
+      "cheatinfo": "Failed to fetch cheat info"
+    }
+  },
+  "content": {
+    "hide_container_events": {
+      "label": "Hide container events",
+      "description": "Hide container start/destroy events"
+    },
+    "no_cheat": {
+      "title": "No cheat info yet",
+      "comment": "Looks like everyone is playing fair"
+    },
+    "team_view": {
+      "table": "Table",
+      "accordion": "By User"
+    }
+  },
+  "label": {
+    "cheat_info": {
+      "owned_user": "Flag Owner",
+      "submit_user": "Submitter"
+    }
   }
 }
