@@ -35,6 +35,20 @@ public class ContainerRepository(
         .Select(ContainerInstanceModel.FromContainer)
         .ToArray();
 
+    public Task<Container?> GetExerciseContainerById(Guid guid, CancellationToken token = default) =>
+        Context.Containers.IgnoreAutoIncludes()
+            .Include(c => c.ExerciseInstance).ThenInclude(i => i!.Exercise)
+            .Include(c => c.ExerciseInstance).ThenInclude(i => i!.User)
+            .FirstOrDefaultAsync(i => i.Id == guid, token);
+
+    public Task<Container[]> GetExerciseContainerInstances(CancellationToken token = default) =>
+        Context.Containers.IgnoreAutoIncludes()
+            .Where(c => c.ExerciseInstance != null)
+            .Include(c => c.ExerciseInstance).ThenInclude(i => i!.Exercise)
+            .Include(c => c.ExerciseInstance).ThenInclude(i => i!.User)
+            .OrderBy(c => c.StartedAt)
+            .ToArrayAsync(token);
+
     public Task<Container[]> GetDyingContainers(CancellationToken token = default) =>
         Context.Containers.Where(c => c.ExpectStopAt < DateTimeOffset.UtcNow).ToArrayAsync(token);
 

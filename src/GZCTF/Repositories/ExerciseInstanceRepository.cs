@@ -12,6 +12,7 @@ public class ExerciseInstanceRepository(
     AppDbContext context,
     IContainerManager service,
     IContainerRepository containerRepository,
+    IExerciseEventRepository exerciseEventRepository,
     IOptionsSnapshot<ContainerPolicy> containerPolicy,
     ILogger<ExerciseInstanceRepository> logger,
     IStringLocalizer<Program> localizer
@@ -181,6 +182,14 @@ public class ExerciseInstanceRepository(
             TaskStatus.Success);
 
         await SaveAsync(token);
+
+        await exerciseEventRepository.AddEvent(new()
+        {
+            Type = EventType.ContainerStart,
+            UserId = user.Id,
+            ExerciseId = instance.ExerciseId,
+            Values = [instance.ExerciseId.ToString(), instance.Exercise.Title]
+        }, token);
 
         return new TaskResult<Container>(TaskStatus.Success, instance.Container);
     }

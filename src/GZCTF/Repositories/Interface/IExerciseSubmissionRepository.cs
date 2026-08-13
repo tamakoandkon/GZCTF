@@ -16,4 +16,10 @@ public interface IExerciseSubmissionRepository : IRepository
     /// Total submission count per challenge (challenge ID → count)
     /// </summary>
     public Task<Dictionary<int, int>> GetSubmissionCounts(CancellationToken token = default);
+
+    /// <summary>
+    /// Get range submissions (for the monitor), newest first, with optional status filter
+    /// </summary>
+    public Task<ExerciseSubmission[]> GetSubmissions(AnswerResult? type = null, int count = 100, int skip = 0,
+        CancellationToken token = default);
 }

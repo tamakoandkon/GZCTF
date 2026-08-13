@@ -36,6 +36,16 @@ public interface IContainerRepository : IRepository
     public Task<ContainerInstanceModel[]> GetContainerInstances(CancellationToken token = default);
 
     /// <summary>
+    /// Get exercise (training range) container by database ID with instance navigations
+    /// </summary>
+    public Task<Container?> GetExerciseContainerById(Guid guid, CancellationToken token = default);
+
+    /// <summary>
+    /// Get all exercise (training range) container instances for the admin monitor
+    /// </summary>
+    public Task<Container[]> GetExerciseContainerInstances(CancellationToken token = default);
+
+    /// <summary>
     /// Get all containers that are about to be stopped
     /// </summary>
     /// <param name="token"></param>
