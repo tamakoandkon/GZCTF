@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using GZCTF.Middlewares;
 using GZCTF.Models;
@@ -32,6 +33,8 @@ public class ExerciseController(
     IContainerRepository containerRepository,
     IExerciseInstanceRepository exerciseInstanceRepository,
     IExerciseSubmissionRepository exerciseSubmissionRepository,
+    IExerciseEventRepository exerciseEventRepository,
+    IExerciseCheatInfoRepository exerciseCheatInfoRepository,
     IPoolChallengeRepository poolChallengeRepository,
     IOptionsSnapshot<ContainerPolicy> containerPolicy,
     IStringLocalizer<Program> localizer) : ControllerBase
@@ -157,7 +160,7 @@ public class ExerciseController(
 
         var status = await exerciseInstanceRepository.VerifyAnswer(user, instance, answer, token);
 
-        await exerciseSubmissionRepository.AddSubmission(new()
+        var submission = await exerciseSubmissionRepository.AddSubmission(new()
         {
             UserId = user.Id,
             ExerciseId = id,
@@ -165,6 +168,32 @@ public class ExerciseController(
             Status = status,
             SubmitTimeUtc = DateTimeOffset.UtcNow
         }, token);
+
+        // FlagSubmit event records the original judging result; a cheat detection
+        // upgrade below is pushed separately as a CheatDetected event.
+        await exerciseEventRepository.AddEvent(ExerciseEvent.FromSubmission(submission), token);
+
+        if (status == AnswerResult.WrongAnswer)
+        {
+            var cheat = await exerciseCheatInfoRepository.CheckCheat(submission, token);
+            if (cheat is not null)
+            {
+                status = AnswerResult.CheatDetected;
+
+                await exerciseEventRepository.AddEvent(new()
+                {
+                    Type = EventType.CheatDetected,
+                    UserId = user.Id,
+                    ExerciseId = id,
+                    Values =
+                    [
+                        submission.ChallengeName,
+                        user.UserName ?? string.Empty,
+                        cheat.SourceUser.UserName ?? string.Empty
+                    ]
+                }, token);
+            }
+        }
 
         if (status == AnswerResult.Accepted)
             await cacheHelper.FlushExerciseScoreboardCache(token);
@@ -320,6 +349,14 @@ public class ExerciseController(
         if (!await containerRepository.DestroyContainer(instance.Container, token))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerDeletionFailed)]));
 
+        await exerciseEventRepository.AddEvent(new()
+        {
+            Type = EventType.ContainerDestroy,
+            UserId = user.Id,
+            ExerciseId = id,
+            Values = [id.ToString(), instance.Exercise.Title]
+        }, token);
+
         instance.LastContainerOperation = DateTimeOffset.UtcNow;
         await exerciseInstanceRepository.SaveAsync(token);
 
@@ -344,4 +381,55 @@ public class ExerciseController(
 
         return Ok(scoreboard);
     }
+
+    /// <summary>
+    /// Get all range events, requires Monitor permission
+    /// </summary>
+    /// <remarks>
+    /// The training range is always open, so there is no start-time window check
+    /// (unlike the game monitor endpoints).
+    /// </remarks>
+    /// <param name="hideContainer">Hide container start/destroy events</param>
+    /// <param name="count">Number of events to return, max 100</param>
+    /// <param name="skip">Events to skip</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully retrieved range events</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    [RequireMonitor]
+    [HttpGet("Events")]
+    [ProducesResponseType(typeof(ExerciseEvent[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Events([FromQuery] bool hideContainer = false,
+        [FromQuery][Range(0, 100)] int count = 100, [FromQuery] int skip = 0, CancellationToken token = default) =>
+        Ok(await exerciseEventRepository.GetEvents(hideContainer, count, skip, token));
+
+    /// <summary>
+    /// Get all range submissions, requires Monitor permission
+    /// </summary>
+    /// <param name="type">Filter by answer result</param>
+    /// <param name="count">Number of submissions to return, max 100</param>
+    /// <param name="skip">Submissions to skip</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully retrieved range submissions</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    [RequireMonitor]
+    [HttpGet("Submissions")]
+    [ProducesResponseType(typeof(ExerciseSubmission[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Submissions([FromQuery] AnswerResult? type = null,
+        [FromQuery][Range(0, 100)] int count = 100, [FromQuery] int skip = 0, CancellationToken token = default) =>
+        Ok(await exerciseSubmissionRepository.GetSubmissions(type, count, skip, token));
+
+    /// <summary>
+    /// Get range cheat information, requires Monitor permission
+    /// </summary>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully retrieved cheat information</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    [RequireMonitor]
+    [HttpGet("CheatInfo")]
+    [ProducesResponseType(typeof(ExerciseCheatInfoModel[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CheatInfo(CancellationToken token = default) =>
+        Ok((await exerciseCheatInfoRepository.GetCheatInfos(token)).Select(ExerciseCheatInfoModel.FromCheatInfo));
 }

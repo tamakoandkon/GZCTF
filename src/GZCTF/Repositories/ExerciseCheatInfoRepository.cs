@@ -46,7 +46,7 @@ public class ExerciseCheatInfoRepository(AppDbContext context)
             .Include(i => i.SubmitUser)
             .Include(i => i.SourceUser)
             .Include(i => i.Exercise)
-            .Include(i => i.Submission)
+            .Include(i => i.Submission).ThenInclude(s => s.Exercise)
             .AsSplitQuery()
             .OrderByDescending(i => i.Submission.SubmitTimeUtc)
             .ToArrayAsync(token);
