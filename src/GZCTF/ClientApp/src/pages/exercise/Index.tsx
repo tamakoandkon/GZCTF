@@ -24,7 +24,8 @@ import { Link } from 'react-router'
 import { Empty } from '@Components/Empty'
 import { ExerciseChallengeModal } from '@Components/ExerciseChallengeModal'
 import { WithNavBar } from '@Components/WithNavbar'
-import { WithRole } from '@Components/WithRole'
+import { RequireRole, WithRole } from '@Components/WithRole'
+import { useUserRole } from '@Hooks/useUser'
 import { useChallengeCategoryLabelMap } from '@Utils/Shared'
 import { useExerciseChallenges } from '@Hooks/useExercise'
 import { usePageTitle } from '@Hooks/usePageTitle'
@@ -34,6 +35,7 @@ import misc from '@Styles/Misc.module.css'
 
 const Exercise: FC = () => {
   const { t } = useTranslation()
+  const { role } = useUserRole()
   usePageTitle(t('exercise.title'))
 
   const { challenges } = useExerciseChallenges()
@@ -129,7 +131,7 @@ const Exercise: FC = () => {
             >
               {t('exercise.button.scoreboard')}
             </Button>
-            <WithRole requiredRole={Role.Monitor}>
+            {RequireRole(Role.Monitor, role) && (
               <Button
                 component={Link}
                 to="/exercise/monitor/events"
@@ -137,7 +139,7 @@ const Exercise: FC = () => {
               >
                 {t('exercise.button.monitor')}
               </Button>
-            </WithRole>
+            )}
           </Group>
         </Group>
 
