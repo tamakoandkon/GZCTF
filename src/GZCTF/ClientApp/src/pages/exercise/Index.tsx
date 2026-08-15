@@ -277,7 +277,11 @@ const Exercise: FC = () => {
           <ExerciseChallengeModal
             opened={detailOpened}
             withCloseButton={false}
-            onClose={() => setDetailOpened(false)}
+            onClose={() => {
+              // unmount the modal so its state resets, matching the game-side behavior
+              setChallenge(null)
+              setDetailOpened(false)
+            }}
             exerciseId={challenge.id!}
             title={challenge.title ?? ''}
             score={challenge.score ?? 0}

@@ -3,7 +3,7 @@ import { useInputState } from '@mantine/hooks'
 import { notifications, showNotification } from '@mantine/notifications'
 import { mdiCheck, mdiClose, mdiLoading } from '@mdi/js'
 import { Icon } from '@mdi/react'
-import React, { FC, useEffect, useState } from 'react'
+import React, { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChallengeModal } from '@Components/ChallengeModal'
 import { encryptApiData } from '@Utils/Crypto'
@@ -38,22 +38,14 @@ export const ExerciseChallengeModal: FC<ExerciseChallengeModalProps> = (props) =
 
   const [disabled, setDisabled] = useState(false)
   const [flag, setFlag] = useInputState('')
-  const [solved, setSolved] = useState(initialSolved)
+  // derived from the challenge detail (authoritative) and the list state, so it
+  // can never leak across challenges - same pattern as the game-side modal
+  const solved = initialSolved || challenge?.isSolved || false
 
   const isLimitReached =
     (challenge?.submissionLimit && (challenge.attempts ?? 0) >= challenge.submissionLimit) || false
 
-  // reset per-challenge state when switching challenges: the modal instance is
-  // reused across challenges, so the previous challenge's solved/flag/disabled
-  // state must not leak into the next one
-  useEffect(() => {
-    setSolved(initialSolved)
-    setFlag('')
-    setDisabled(false)
-  }, [exerciseId, initialSolved])
-
   const onSolved = () => {
-    setSolved(true)
     setFlag('')
     mutate(challenge ? { ...challenge, isSolved: true } : undefined)
     // refresh the challenge list and scoreboard cache
