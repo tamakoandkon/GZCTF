@@ -43,12 +43,14 @@ export const ExerciseChallengeModal: FC<ExerciseChallengeModalProps> = (props) =
   const isLimitReached =
     (challenge?.submissionLimit && (challenge.attempts ?? 0) >= challenge.submissionLimit) || false
 
-  // sync with the API detail: if the challenge is already solved, disable submission
+  // reset per-challenge state when switching challenges: the modal instance is
+  // reused across challenges, so the previous challenge's solved/flag/disabled
+  // state must not leak into the next one
   useEffect(() => {
-    if (challenge?.isSolved) {
-      setSolved(true)
-    }
-  }, [challenge?.isSolved])
+    setSolved(initialSolved)
+    setFlag('')
+    setDisabled(false)
+  }, [exerciseId, initialSolved])
 
   const onSolved = () => {
     setSolved(true)
