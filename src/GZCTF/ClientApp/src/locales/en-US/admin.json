@@ -466,7 +466,8 @@
       "difficulty": "Difficulty",
       "tags": "Tags",
       "range_settings": "Range Settings",
-      "linked_hint": "Content is managed in the pool. Only per-game scoring config (score, decay, blood bonus, traffic capture) can be edited here."
+      "linked_hint": "Content is managed in the pool. Only per-game scoring config (score, decay, blood bonus, traffic capture) can be edited here.",
+      "page_info": "{{current}} / {{total}} challenges"
     }
   },
   "label": {

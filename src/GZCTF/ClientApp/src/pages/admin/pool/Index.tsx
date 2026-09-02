@@ -6,6 +6,7 @@ import {
   Group,
   Modal,
   NumberInput,
+  Pagination,
   Select,
   Stack,
   Switch,
@@ -19,7 +20,7 @@ import { useModals } from '@mantine/modals'
 import { showNotification } from '@mantine/notifications'
 import { mdiArrowDown, mdiArrowUp, mdiCheck, mdiDatabaseOutline, mdiDeleteOutline, mdiPencilOutline, mdiPlus } from '@mdi/js'
 import { Icon } from '@mdi/react'
-import { FC, useMemo, useState } from 'react'
+import { FC, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { AdminPage } from '@Components/admin/AdminPage'
@@ -69,6 +70,7 @@ const PoolIndex: FC = () => {
   const [type, setType] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<Difficulty | null>(Difficulty.Normal)
   const [disabled, setDisabled] = useState(false)
+  const [page, setPage] = useState(1)
 
   // list filter + sort
   const [typeFilter, setTypeFilter] = useState<ChallengeType | null>(null)
@@ -119,6 +121,16 @@ const PoolIndex: FC = () => {
     }
     return list
   }, [pools, typeFilter, search, sortKey, sortOrder])
+
+  // paginate the filtered list client-side (20 per page), newest first from the backend
+  const PAGE_SIZE = 20
+  const pageCount = Math.max(1, Math.ceil(filteredPools.length / PAGE_SIZE))
+  const pagePools = filteredPools.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  // jump back to the first page whenever the filter/sort changes
+  useEffect(() => {
+    setPage(1)
+  }, [typeFilter, search, sortKey, sortOrder])
 
   const difficultyData = Object.values(Difficulty).map((v) => ({
     value: String(v),
@@ -238,6 +250,7 @@ const PoolIndex: FC = () => {
           </Stack>
         </Center>
       ) : (
+        <>
         <Table highlightOnHover verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
@@ -288,7 +301,7 @@ const PoolIndex: FC = () => {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {filteredPools.map((pool) => {
+            {pagePools.map((pool) => {
               const cateData = challengeCategoryLabelMap.get(pool.category ?? ChallengeCategory.Misc)
               const typeData = challengeTypeLabelMap.get(pool.type!)
               return (
@@ -354,6 +367,24 @@ const PoolIndex: FC = () => {
             })}
           </Table.Tbody>
         </Table>
+        <Group justify="space-between" align="center" mt="md" px="xs">
+          <Text size="sm" c="dimmed">
+            {t('admin.content.pool.page_info', {
+              current: Math.min((page - 1) * PAGE_SIZE + pagePools.length, filteredPools.length),
+              total: filteredPools.length,
+            })}
+          </Text>
+          <Pagination.Root total={pageCount} siblings={1} value={page} onChange={setPage}>
+            <Group gap={5} justify="flex-end">
+              <Pagination.First />
+              <Pagination.Previous />
+              <Pagination.Items />
+              <Pagination.Next />
+              <Pagination.Last />
+            </Group>
+          </Pagination.Root>
+        </Group>
+        </>
       )}
 
       <Modal opened={createOpened} onClose={() => setCreateOpened(false)} title={t('admin.button.pool.new')} size="30%">

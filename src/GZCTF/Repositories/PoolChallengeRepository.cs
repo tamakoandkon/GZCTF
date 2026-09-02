@@ -19,7 +19,7 @@ public class PoolChallengeRepository(AppDbContext context, IBlobRepository blobR
         Context.PoolChallenges.FirstOrDefaultAsync(c => c.Id == id, token);
 
     public Task<PoolChallenge[]> GetPoolChallenges(CancellationToken token = default) =>
-        Context.PoolChallenges.OrderBy(c => c.Id).ToArrayAsync(token);
+        Context.PoolChallenges.OrderByDescending(c => c.Id).ToArrayAsync(token);
 
     public Task<PoolChallenge[]> GetRangeChallenges(CancellationToken token = default) =>
         Context.PoolChallenges.Where(c => c.RangeEnabled && c.IsEnabled)
