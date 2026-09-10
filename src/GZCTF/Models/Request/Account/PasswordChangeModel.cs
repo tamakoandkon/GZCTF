@@ -14,6 +14,7 @@ public class PasswordChangeModel
         ErrorMessageResourceType = typeof(Resources.Program))]
     [MinLength(Limits.MinPasswordLength, ErrorMessageResourceName = nameof(Resources.Program.Model_OldPasswordTooShort),
         ErrorMessageResourceType = typeof(Resources.Program))]
+    [MaxLength(Limits.MaxPasswordLength)]
     public string Old { get; set; } = string.Empty;
 
     /// <summary>
@@ -23,5 +24,6 @@ public class PasswordChangeModel
         ErrorMessageResourceType = typeof(Resources.Program))]
     [MinLength(Limits.MinPasswordLength, ErrorMessageResourceName = nameof(Resources.Program.Model_NewPasswordTooShort),
         ErrorMessageResourceType = typeof(Resources.Program))]
+    [MaxLength(Limits.MaxPasswordLength)]
     public string New { get; set; } = string.Empty;
 }

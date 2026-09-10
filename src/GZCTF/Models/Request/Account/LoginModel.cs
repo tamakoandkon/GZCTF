@@ -18,5 +18,6 @@ public class LoginModel : ModelWithCaptcha
     /// Password
     /// </summary>
     [Required]
+    [MaxLength(Limits.MaxPasswordLength)]
     public string Password { get; set; } = string.Empty;
 }

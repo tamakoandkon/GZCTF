@@ -71,11 +71,12 @@ public class ExerciseInstanceRepository(
             }
             else if (challenge.Type == ChallengeType.DynamicAttachment)
             {
-                var flags = await Context.FlagContexts
-                    .Where(e => e.PoolChallengeId == exerciseId && !e.IsOccupied)
-                    .ToListAsync(token);
+                // Atomically claim one free flag (conditional UPDATE + retry). The old
+                // list-then-mark flow let concurrent dispatchers bind the same flag row,
+                // handing an identical dynamic flag to two users/teams.
+                var claimedFlagId = await ClaimFreeExerciseFlagAsync(exerciseId, token);
 
-                if (flags.Count == 0)
+                if (claimedFlagId is null)
                 {
                     logger.SystemLog(
                         localizer[nameof(Resources.Program.InstanceRepository_DynamicFlagsNotEnough),
@@ -85,9 +86,7 @@ public class ExerciseInstanceRepository(
                     return null;
                 }
 
-                var pos = Random.Shared.Next(flags.Count);
-                flags[pos].IsOccupied = true;
-                instance.FlagId = flags[pos].Id;
+                instance.FlagId = claimedFlagId.Value;
             }
 
             // instance.FlagContext is null by default
@@ -108,6 +107,35 @@ public class ExerciseInstanceRepository(
         }
 
         return instance;
+    }
+
+    /// <summary>
+    /// Atomically claim one unoccupied dynamic-attachment flag of the pool challenge.
+    /// Conditional UPDATE makes concurrent dispatchers retry instead of double-issuing.
+    /// </summary>
+    private async Task<int?> ClaimFreeExerciseFlagAsync(int poolChallengeId,
+        CancellationToken token = default)
+    {
+        const int maxClaimAttempts = 5;
+
+        for (var attempt = 0; attempt < maxClaimAttempts; attempt++)
+        {
+            var candidateId = await Context.FlagContexts.AsNoTracking()
+                .Where(e => e.PoolChallengeId == poolChallengeId && !e.IsOccupied)
+                .OrderBy(e => e.Id).Select(e => (int?)e.Id).FirstOrDefaultAsync(token);
+
+            if (candidateId is null)
+                return null;
+
+            var affected = await Context.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE \"FlagContexts\" SET \"IsOccupied\" = true WHERE \"Id\" = {candidateId.Value} AND NOT \"IsOccupied\"",
+                token);
+
+            if (affected > 0)
+                return candidateId.Value;
+        }
+
+        return null;
     }
 
     public async Task<TaskResult<Container>> CreateContainer(ExerciseInstance instance, UserInfo user,
@@ -226,8 +254,19 @@ public class ExerciseInstanceRepository(
 
         await using var transaction = await Context.Database.BeginTransactionAsync(token);
 
-        instance.SolveTimeUtc = DateTimeOffset.UtcNow;
-        await SaveAsync(token);
+        // Atomically claim the solve with a conditional UPDATE (composite PK is
+        // UserId + ExerciseId; SolveTimeUtc defaults to the Unix epoch). Two concurrent
+        // correct submissions both passed the in-memory guards before; now only the
+        // first one observes a row affected, so duplicate Accepted / double scoring
+        // cannot happen.
+        var now = DateTimeOffset.UtcNow;
+        var epoch = DateTimeOffset.FromUnixTimeSeconds(0);
+        var affected = await Context.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE \"ExerciseInstances\" SET \"SolveTimeUtc\" = {now} WHERE \"UserId\" = {instance.UserId} AND \"ExerciseId\" = {instance.ExerciseId} AND \"SolveTimeUtc\" <= {epoch}",
+            token);
+
+        if (affected > 0)
+            instance.SolveTimeUtc = now;
 
         await transaction.CommitAsync(token);
     }

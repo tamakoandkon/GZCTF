@@ -29,6 +29,12 @@ public interface IContainerRepository : IRepository
     public Task<bool> ValidateContainer(Guid guid, CancellationToken token = default);
 
     /// <summary>
+    /// Whether the given user may access this container (game: team member,
+    /// range: owning user, instance-less: nobody)
+    /// </summary>
+    public Task<bool> ValidateContainerAccess(Guid guid, Guid userId, CancellationToken token = default);
+
+    /// <summary>
     /// Get all container instances
     /// </summary>
     /// <param name="token"></param>

@@ -21,14 +21,20 @@ public static partial class Codec
     [SuppressMessage("ReSharper", "StringLiteralTypo")]
     public static string RandomPassword(int length)
     {
-        var random = new Random();
+        // Time-seeded System.Random made admin-reset passwords predictable (31-bit seed
+        // space, recoverable when the reset moment is known). Use a CSPRNG instead.
         const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+";
+
+        var targetLength = Math.Max(length, 8);
 
         string pwd;
         do
         {
-            pwd = new string(Enumerable.Repeat(chars, length < 8 ? 8 : length)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
+            var builder = new StringBuilder(targetLength);
+            for (var i = 0; i < targetLength; i++)
+                builder.Append(chars[RandomNumberGenerator.GetInt32(chars.Length)]);
+
+            pwd = builder.ToString();
         } while (!PasswordRegex().IsMatch(pwd));
 
         return pwd;
