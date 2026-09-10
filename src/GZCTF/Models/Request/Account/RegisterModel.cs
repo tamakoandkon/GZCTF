@@ -24,6 +24,7 @@ public class RegisterModel : ModelWithCaptcha
     /// </summary>
     [Required(ErrorMessageResourceName = nameof(Resources.Program.Model_PasswordRequired),
         ErrorMessageResourceType = typeof(Resources.Program))]
+    [MaxLength(Limits.MaxPasswordLength)]
     public string Password { get; set; } = string.Empty;
 
     /// <summary>

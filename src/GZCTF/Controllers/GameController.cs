@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Concurrent;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Mime;
@@ -52,8 +53,15 @@ public class GameController(
     IGameInstanceRepository gameInstanceRepository,
     IParticipationRepository participationRepository,
     IOptionsSnapshot<ContainerPolicy> containerPolicy,
+    AppDbContext dbContext,
     IStringLocalizer<Program> localizer) : ControllerBase
 {
+    // Serializes container create/destroy per participation: the cooldown check,
+    // the stale-container destroy and the docker create must not interleave, or
+    // concurrent requests can exceed the container limit / destroy each other's
+    // freshly created container. Process-local by design (single-instance deploy).
+    private static readonly ConcurrentDictionary<int, SemaphoreSlim> ContainerOperationLocks = new();
+
     /// <summary>
     /// Get the recent games
     /// </summary>
@@ -228,6 +236,15 @@ public class GameController(
 
         // Get existing participation for this team in this game
         var part = await participationRepository.GetParticipation(team, game, token);
+
+        // Serialize joins per (game, user): concurrent joins from two devices (or the
+        // same user racing two team invites) could both pass the repeat-participation
+        // check below and enroll one user in two teams of the same game.
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock({0}, {1})",
+                [game.Id, unchecked(user!.Id.GetHashCode())], token);
+        }
 
         // Check if user is already in this game through a different team (exclude rejected participations)
         if (await participationRepository.CheckRepeatParticipation(user!, game, token))
@@ -659,6 +676,9 @@ public class GameController(
     public async Task<IActionResult> GetTeamTraffic([FromRoute] int challengeId, [FromRoute] int partId,
         [FromRoute] string filename, CancellationToken token)
     {
+        if (!IsValidCaptureFilename(filename))
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_CaptureNotFound)]));
+
         try
         {
             var path = StoragePath.Combine(PathHelper.Capture, $"{challengeId}", $"{partId}", filename);
@@ -695,6 +715,9 @@ public class GameController(
     public async Task<IActionResult> DeleteTeamTraffic([FromRoute] int challengeId, [FromRoute] int partId,
         [FromRoute] string filename, CancellationToken token)
     {
+        if (!IsValidCaptureFilename(filename))
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_CaptureNotFound)]));
+
         try
         {
             var path = StoragePath.Combine(PathHelper.Capture, $"{challengeId}", $"{partId}", filename);
@@ -711,6 +734,17 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_CaptureNotFound)]));
         }
     }
+
+    /// <summary>
+    /// Restrict traffic-capture filenames to a flat allowlist so route values can
+    /// never carry path separators or dot segments into the storage layer
+    /// (defense in depth on top of StoragePath dot-segment filtering)
+    /// </summary>
+    private static bool IsValidCaptureFilename(string filename) =>
+        filename.Length is > 0 and <= 128 &&
+        filename.All(static c =>
+            c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9'
+                or '.' or '_' or '-');
 
     /// <summary>
     /// Get team details in a game
@@ -1007,6 +1041,15 @@ public class GameController(
                 return BadRequest(
                     new RequestResponse(localizer[nameof(Resources.Program.Challenge_SubmissionNoPermission)]));
 
+            // Serialize submission accounting per (team, challenge): without this,
+            // concurrent submits all read the same attempt count and collectively
+            // exceed the challenge submission limit (PostgreSQL advisory lock).
+            if (dbContext.Database.IsNpgsql())
+            {
+                await dbContext.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock({0}, {1})",
+                    [context.Participation!.Id, challengeId], token);
+            }
+
             var currentAttempts =
                 await submissionRepository.CountSubmissions(context.Participation!.Id, challengeId, token);
 
@@ -1229,30 +1272,43 @@ public class GameController(
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationNotAllowed)]));
 
-        if (instance.IsContainerOperationTooFrequent)
-            return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
-                StatusCodes.Status429TooManyRequests);
-
-        if (instance.Container is not null)
+        // The cooldown check, stale-container destroy and docker create are one atomic
+        // unit per participation: concurrent creates must not both pass the 10s
+        // cooldown / count checks, destroy each other's container, or exceed the limit.
+        var gate = ContainerOperationLocks.GetOrAdd(context.Participation!.Id,
+            static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(token);
+        try
         {
-            if (instance.Container.Status == ContainerStatus.Running)
-                return BadRequest(
-                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerAlreadyCreated)]));
+            if (instance.IsContainerOperationTooFrequent)
+                return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
+                    StatusCodes.Status429TooManyRequests);
 
-            await containerRepository.DestroyContainer(instance.Container, token);
+            if (instance.Container is not null)
+            {
+                if (instance.Container.Status == ContainerStatus.Running)
+                    return BadRequest(
+                        new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerAlreadyCreated)]));
+
+                await containerRepository.DestroyContainer(instance.Container, token);
+            }
+
+            return await gameInstanceRepository.CreateContainer(instance, context.Participation!.Team,
+                    context.User!, context.Game!, token) switch
+            {
+                null or (TaskStatus.Failed, null) => BadRequest(
+                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationFailed)])),
+                (TaskStatus.Denied, null) => BadRequest(
+                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerNumberLimitExceeded),
+                        context.Game!.ContainerCountLimit])),
+                (TaskStatus.Success, var x) => Ok(ContainerInfoModel.FromContainer(x!)),
+                _ => throw new UnreachableException()
+            };
         }
-
-        return await gameInstanceRepository.CreateContainer(instance, context.Participation!.Team, context.User!,
-                context.Game!, token) switch
+        finally
         {
-            null or (TaskStatus.Failed, null) => BadRequest(
-                new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationFailed)])),
-            (TaskStatus.Denied, null) => BadRequest(
-                new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerNumberLimitExceeded),
-                    context.Game!.ContainerCountLimit])),
-            (TaskStatus.Success, var x) => Ok(ContainerInfoModel.FromContainer(x!)),
-            _ => throw new UnreachableException()
-        };
+            gate.Release();
+        }
     }
 
     /// <summary>
@@ -1345,34 +1401,48 @@ public class GameController(
         if (instance.Container is null)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerNotCreated)]));
 
-        if (instance.IsContainerOperationTooFrequent)
-            return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
-                StatusCodes.Status429TooManyRequests);
+        // Same per-participation gate as CreateContainer: destroy and the cooldown
+        // timestamp update must not interleave with a concurrent create.
+        var gate = ContainerOperationLocks.GetOrAdd(context.Participation!.Id,
+            static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(token);
+        try
+        {
+            if (instance.IsContainerOperationTooFrequent)
+                return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
+                    StatusCodes.Status429TooManyRequests);
 
-        var destroyId = instance.Container.LogId;
+            var destroyId = instance.Container.LogId;
 
-        if (!await containerRepository.DestroyContainer(instance.Container, token))
-            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerDeletionFailed)]));
+            if (!await containerRepository.DestroyContainer(instance.Container, token))
+                return BadRequest(
+                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerDeletionFailed)]));
 
-        instance.LastContainerOperation = DateTimeOffset.UtcNow;
+            instance.LastContainerOperation = DateTimeOffset.UtcNow;
+            await gameInstanceRepository.SaveAsync(token);
 
-        await gameEventRepository.AddEvent(
-            new()
-            {
-                Type = EventType.ContainerDestroy,
-                GameId = context.Game!.Id,
-                TeamId = context.Participation!.TeamId,
-                UserId = context.User!.Id,
-                Values = [instance.Challenge.Id.ToString(), instance.Challenge.Title]
-            }, token);
+            await gameEventRepository.AddEvent(
+                new()
+                {
+                    Type = EventType.ContainerDestroy,
+                    GameId = context.Game!.Id,
+                    TeamId = context.Participation!.TeamId,
+                    UserId = context.User!.Id,
+                    Values = [instance.Challenge.Id.ToString(), instance.Challenge.Title]
+                }, token);
 
-        logger.Log(
-            StaticLocalizer[nameof(Resources.Program.Game_ContainerDeleted), context.Participation!.Team.Name,
-                instance.Challenge.Title,
-                destroyId],
-            context.User, TaskStatus.Success);
+            logger.Log(
+                StaticLocalizer[nameof(Resources.Program.Game_ContainerDeleted), context.Participation!.Team.Name,
+                    instance.Challenge.Title,
+                    destroyId],
+                context.User, TaskStatus.Success);
 
-        return Ok();
+            return Ok();
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     private async Task<ContextInfo> GetContextInfo(int id, bool denyAfterEnded = true,

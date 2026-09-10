@@ -35,7 +35,14 @@ public static class StoragePath
 
         foreach (var segment in path.Split(['/', '\\'],
                      StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            // drop dot segments: storage keys have no relative-path semantics, and
+            // keeping ".." would let a crafted filename escape its intended subtree
+            if (segment is "." or "..")
+                continue;
+
             yield return segment;
+        }
     }
 
     /// <summary>

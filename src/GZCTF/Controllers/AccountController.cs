@@ -76,10 +76,11 @@ public class AccountController(
             if (current is null)
                 return HandleIdentityError(result.Errors);
 
-            if (await userManager.IsEmailConfirmedAsync(current))
-                return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Account_UserExisting)]));
-
-            user = current;
+            // Do NOT adopt an existing (even unconfirmed) account: doing so would let an
+            // attacker register a victim's email, force EmailConfirmed and obtain a live
+            // session without knowing the original credentials. Surface the conflict and
+            // let the owner finish via the email verification / reset flows instead.
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Account_UserExisting)]));
         }
 
         if (accountPolicy.Value.ActiveOnRegister)

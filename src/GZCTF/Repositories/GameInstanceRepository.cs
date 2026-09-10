@@ -68,16 +68,16 @@ public class GameInstanceRepository(
                     };
                     break;
                 case ChallengeType.DynamicAttachment:
-                    // linked challenges store flags against the pool challenge
-                    var flags = challenge.IsLinked
-                        ? await Context.FlagContexts
-                            .Where(e => e.PoolChallengeId == challenge.PoolChallengeId && !e.IsOccupied)
-                            .ToListAsync(token)
-                        : await Context.FlagContexts
-                            .Where(e => e.Challenge == challenge && !e.IsOccupied)
-                            .ToListAsync(token);
+                    // Atomically claim one free flag: read a candidate row, then occupy it
+                    // with a conditional UPDATE. Concurrent dispatchers that pick the same
+                    // row lose the UPDATE (0 rows affected) and retry on the next candidate,
+                    // instead of both binding the same flag. The previous list-then-mark
+                    // TOCTOU handed one flag to two teams under concurrency.
+                    var claimedFlagId = await ClaimFreeFlagAsync(
+                        challenge.IsLinked ? challenge.PoolChallengeId : null,
+                        challenge.Id, token);
 
-                    if (flags.Count == 0)
+                    if (claimedFlagId is null)
                     {
                         logger.SystemLog(
                             StaticLocalizer[nameof(Resources.Program.InstanceRepository_DynamicFlagsNotEnough),
@@ -87,10 +87,7 @@ public class GameInstanceRepository(
                         return null;
                     }
 
-                    var pos = Random.Shared.Next(flags.Count);
-                    flags[pos].IsOccupied = true;
-
-                    instance.FlagId = flags[pos].Id;
+                    instance.FlagId = claimedFlagId.Value;
                     break;
             }
 
@@ -113,6 +110,41 @@ public class GameInstanceRepository(
         }
 
         return instance;
+    }
+
+    /// <summary>
+    /// Atomically claim one unoccupied dynamic-attachment flag. Reads a candidate
+    /// (linked challenges draw from the pool challenge's flag set) and occupies it
+    /// with a conditional UPDATE; on a lost race it retries with the next candidate.
+    /// Returns null when the pool has no free flag left after the attempts.
+    /// </summary>
+    private async Task<int?> ClaimFreeFlagAsync(int? poolChallengeId, int challengeId,
+        CancellationToken token = default)
+    {
+        const int maxClaimAttempts = 5;
+
+        for (var attempt = 0; attempt < maxClaimAttempts; attempt++)
+        {
+            int? candidateId = poolChallengeId is { } poolId
+                ? await Context.FlagContexts.AsNoTracking()
+                    .Where(e => e.PoolChallengeId == poolId && !e.IsOccupied)
+                    .OrderBy(e => e.Id).Select(e => (int?)e.Id).FirstOrDefaultAsync(token)
+                : await Context.FlagContexts.AsNoTracking()
+                    .Where(e => e.ChallengeId == challengeId && !e.IsOccupied)
+                    .OrderBy(e => e.Id).Select(e => (int?)e.Id).FirstOrDefaultAsync(token);
+
+            if (candidateId is null)
+                return null;
+
+            var affected = await Context.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE \"FlagContexts\" SET \"IsOccupied\" = true WHERE \"Id\" = {candidateId.Value} AND NOT \"IsOccupied\"",
+                token);
+
+            if (affected > 0)
+                return candidateId.Value;
+        }
+
+        return null;
     }
 
     public Task<GameInstance?> GetInstanceForSubmission(Participation team, int challengeId,

@@ -400,6 +400,12 @@ public partial class TeamController(
             if (team.Members.Any(m => m.Id == user!.Id))
                 return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.User_AlreadyInTeam)]));
 
+            // A locked team (already running in an active game) must not grow its
+            // roster: the same guard is applied on Kick/Leave/Transfer, but was
+            // missing on the accept path, letting teams add members mid-game.
+            if (team.Locked && await teamRepository.AnyActiveGame(team, cancelToken))
+                return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_Locked)]));
+
             team.Members.Add(user!);
 
             await teamRepository.SaveAsync(cancelToken);

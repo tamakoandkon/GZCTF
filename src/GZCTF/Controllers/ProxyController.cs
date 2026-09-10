@@ -1,10 +1,12 @@
 ﻿using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using System.Security.Claims;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using GZCTF.Middlewares;
 using GZCTF.Models.Internal;
 using GZCTF.Repositories.Interface;
 using GZCTF.Services.Cache;
@@ -46,6 +48,11 @@ public class ProxyController(
     private static readonly DistributedCacheEntryOptions ValidOption =
         new() { SlidingExpiration = TimeSpan.FromMinutes(10) };
 
+    // IDistributedCache has no atomic increment; the connection counter is a
+    // read-modify-write on the same key, so serialize it in-process. NOTE: with a
+    // multi-instance deployment this must move to Redis INCR / a Lua script.
+    private static readonly object ConnectionCounterLock = new();
+
     private readonly bool _enablePlatformProxy =
         provider.Value.PortMappingType == ContainerPortMappingType.PlatformProxy;
 
@@ -62,12 +69,13 @@ public class ProxyController(
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status418ImATeapot)]
+    [RequireUser]
     public async Task<IActionResult> ProxyForInstance(Guid id, CancellationToken token = default)
     {
         if (!_enablePlatformProxy)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Proxy_TcpDisabled)]));
 
-        if (!await ValidateContainer(id, token))
+        if (!await ValidateContainerForCurrentUser(id, monitorOnly: false, token))
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Container_NotFound)],
                 StatusCodes.Status404NotFound));
 
@@ -129,12 +137,14 @@ public class ProxyController(
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status418ImATeapot)]
     [SuppressMessage("ReSharper", "RouteTemplates.ParameterTypeCanBeMadeStricter")]
+    [RequireUser]
     public async Task<IActionResult> ProxyForNoInstance(Guid id, CancellationToken token = default)
     {
         if (!_enablePlatformProxy)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Proxy_TcpDisabled)]));
 
-        if (!await ValidateContainer(id, token))
+        // instance-less containers are administrative (test) containers: only monitors may proxy them
+        if (!await ValidateContainerForCurrentUser(id, monitorOnly: true, token))
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Container_NotFound)],
                 StatusCodes.Status404NotFound));
 
@@ -309,6 +319,30 @@ public class ProxyController(
     }
 
     /// <summary>
+    /// Validate that the current user may reach this container: existence first,
+    /// then monitors/admins pass, ordinary users must own the container
+    /// (team membership for game instances, owner for range instances).
+    /// </summary>
+    private async Task<bool> ValidateContainerForCurrentUser(Guid id, bool monitorOnly,
+        CancellationToken token = default)
+    {
+        if (!await ValidateContainer(id, token))
+            return false;
+
+        if (await ContextHelper.HasMonitor(HttpContext))
+            return true;
+
+        if (monitorOnly)
+            return false;
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null || !Guid.TryParse(userId, out var uid))
+            return false;
+
+        return await containerRepository.ValidateContainerAccess(id, uid, token);
+    }
+
+    /// <summary>
     /// Validate container existence
     /// </summary>
     /// <param name="id">Container ID</param>
@@ -331,25 +365,31 @@ public class ProxyController(
     }
 
     /// <summary>
-    /// Increase Fetch-Add operation for container TCP connection count
+    /// Increase Fetch-Add operation for container TCP connection count.
+    /// The read-modify-write is serialized in-process (see ConnectionCounterLock);
+    /// the >= comparison enforces the configured cap exactly (previously the 33rd
+    /// connection slipped through).
     /// </summary>
     /// <param name="key">Cache key</param>
     /// <returns></returns>
-    private async Task<bool> IncreaseConnectionCount(string key)
+    private Task<bool> IncreaseConnectionCount(string key)
     {
-        var bytes = await cache.GetAsync(key);
+        lock (ConnectionCounterLock)
+        {
+            var bytes = cache.Get(key);
 
-        if (bytes is null)
-            return false;
+            if (bytes is null)
+                return Task.FromResult(false);
 
-        var count = BitConverter.ToInt32(bytes);
+            var count = BitConverter.ToInt32(bytes);
 
-        if (count > ConnectionLimit)
-            return false;
+            if (count < 0 || count >= ConnectionLimit)
+                return Task.FromResult(false);
 
-        await cache.SetAsync(key, BitConverter.GetBytes(count + 1), StoreOption);
+            cache.Set(key, BitConverter.GetBytes(count + 1), StoreOption);
 
-        return true;
+            return Task.FromResult(true);
+        }
     }
 
     /// <summary>
@@ -357,18 +397,23 @@ public class ProxyController(
     /// </summary>
     /// <param name="key">Cache key</param>
     /// <returns></returns>
-    private async Task DecreaseConnectionCount(string key)
+    private Task DecreaseConnectionCount(string key)
     {
-        var bytes = await cache.GetAsync(key);
+        lock (ConnectionCounterLock)
+        {
+            var bytes = cache.Get(key);
 
-        if (bytes is null)
-            return;
+            if (bytes is null)
+                return Task.CompletedTask;
 
-        var count = BitConverter.ToInt32(bytes);
+            var count = BitConverter.ToInt32(bytes);
 
-        if (count > 1)
-            await cache.SetAsync(key, BitConverter.GetBytes(count - 1), StoreOption);
-        else
-            await cache.SetAsync(key, BitConverter.GetBytes(0), ValidOption);
+            if (count > 1)
+                cache.Set(key, BitConverter.GetBytes(count - 1), StoreOption);
+            else
+                cache.Set(key, BitConverter.GetBytes(0), ValidOption);
+
+            return Task.CompletedTask;
+        }
     }
 }

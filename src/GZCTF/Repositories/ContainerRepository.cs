@@ -61,6 +61,19 @@ public class ContainerRepository(
     public async Task<bool> ValidateContainer(Guid guid, CancellationToken token = default) =>
         await Context.Containers.AnyAsync(c => c.Id == guid, token);
 
+    /// <summary>
+    /// Validate that the given user is entitled to reach this container: a member of
+    /// the owning team for game containers, the owning user for range containers,
+    /// and nobody for instance-less (NoInst) containers
+    /// </summary>
+    public async Task<bool> ValidateContainerAccess(Guid guid, Guid userId, CancellationToken token = default) =>
+        await Context.Containers.AsNoTracking()
+            .Where(c => c.Id == guid)
+            .Select(c => c.GameInstance != null
+                ? c.GameInstance.Participation.Team.Members.Any(m => m.Id == userId)
+                : c.ExerciseInstance != null && c.ExerciseInstance.UserId == userId)
+            .SingleOrDefaultAsync(token) == true;
+
     public async Task<bool> DestroyContainer(Container container, CancellationToken token = default)
     {
         try

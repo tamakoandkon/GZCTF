@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using GZCTF.Middlewares;
@@ -39,6 +40,10 @@ public class ExerciseController(
     IOptionsSnapshot<ContainerPolicy> containerPolicy,
     IStringLocalizer<Program> localizer) : ControllerBase
 {
+    // Serializes container create/destroy per user (range instances are per-user):
+    // cooldown checks and docker create/destroy must not interleave.
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ExerciseContainerOperationLocks = new();
+
     /// <summary>
     /// Get all range challenges grouped by category
     /// </summary>
@@ -242,29 +247,41 @@ public class ExerciseController(
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationNotAllowed)]));
 
-        if (instance.IsContainerOperationTooFrequent)
-            return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
-                StatusCodes.Status429TooManyRequests);
-
-        if (instance.Container is not null)
+        // Per-user gate: cooldown check, stale-container destroy and docker create
+        // are one atomic unit (mirrors the game-side participation gate).
+        var gate = ExerciseContainerOperationLocks.GetOrAdd(user.Id,
+            static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(token);
+        try
         {
-            if (instance.Container.Status == ContainerStatus.Running)
-                return BadRequest(
-                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerAlreadyCreated)]));
+            if (instance.IsContainerOperationTooFrequent)
+                return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
+                    StatusCodes.Status429TooManyRequests);
 
-            await containerRepository.DestroyContainer(instance.Container, token);
+            if (instance.Container is not null)
+            {
+                if (instance.Container.Status == ContainerStatus.Running)
+                    return BadRequest(
+                        new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerAlreadyCreated)]));
+
+                await containerRepository.DestroyContainer(instance.Container, token);
+            }
+
+            return await exerciseInstanceRepository.CreateContainer(instance, user, token) switch
+            {
+                null or (TaskStatus.Failed, null) => BadRequest(
+                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationFailed)])),
+                (TaskStatus.Denied, null) => BadRequest(
+                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerNumberLimitExceeded),
+                        containerPolicy.Value.MaxExerciseContainerCountPerUser])),
+                (TaskStatus.Success, var x) => Ok(ContainerInfoModel.FromContainer(x!)),
+                _ => throw new UnreachableException()
+            };
         }
-
-        return await exerciseInstanceRepository.CreateContainer(instance, user, token) switch
+        finally
         {
-            null or (TaskStatus.Failed, null) => BadRequest(
-                new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerCreationFailed)])),
-            (TaskStatus.Denied, null) => BadRequest(
-                new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerNumberLimitExceeded),
-                    containerPolicy.Value.MaxExerciseContainerCountPerUser])),
-            (TaskStatus.Success, var x) => Ok(ContainerInfoModel.FromContainer(x!)),
-            _ => throw new UnreachableException()
-        };
+            gate.Release();
+        }
     }
 
     /// <summary>
@@ -346,25 +363,37 @@ public class ExerciseController(
         if (instance.Container is null)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerNotCreated)]));
 
-        if (instance.IsContainerOperationTooFrequent)
-            return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
-                StatusCodes.Status429TooManyRequests);
-
-        if (!await containerRepository.DestroyContainer(instance.Container, token))
-            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerDeletionFailed)]));
-
-        await exerciseEventRepository.AddEvent(new()
+        // Same per-user gate as CreateContainer
+        var gate = ExerciseContainerOperationLocks.GetOrAdd(user.Id,
+            static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(token);
+        try
         {
-            Type = EventType.ContainerDestroy,
-            UserId = user.Id,
-            ExerciseId = id,
-            Values = [id.ToString(), instance.Exercise.Title]
-        }, token);
+            if (instance.IsContainerOperationTooFrequent)
+                return RequestResponse.Result(localizer[nameof(Resources.Program.Game_OperationTooFrequent)],
+                    StatusCodes.Status429TooManyRequests);
 
-        instance.LastContainerOperation = DateTimeOffset.UtcNow;
-        await exerciseInstanceRepository.SaveAsync(token);
+            if (!await containerRepository.DestroyContainer(instance.Container, token))
+                return BadRequest(
+                    new RequestResponse(localizer[nameof(Resources.Program.Game_ContainerDeletionFailed)]));
 
-        return Ok();
+            await exerciseEventRepository.AddEvent(new()
+            {
+                Type = EventType.ContainerDestroy,
+                UserId = user.Id,
+                ExerciseId = id,
+                Values = [id.ToString(), instance.Exercise.Title]
+            }, token);
+
+            instance.LastContainerOperation = DateTimeOffset.UtcNow;
+            await exerciseInstanceRepository.SaveAsync(token);
+
+            return Ok();
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     /// <summary>

@@ -48,6 +48,11 @@ public static class Limits
     public const int MinPasswordLength = 6;
 
     /// <summary>
+    /// 密码最大长度（防止超大输入拖垮 PBKDF2 哈希）
+    /// </summary>
+    public const int MaxPasswordLength = 128;
+
+    /// <summary>
     /// 文件哈希长度
     /// </summary>
     public const int FileHashLength = 64;
