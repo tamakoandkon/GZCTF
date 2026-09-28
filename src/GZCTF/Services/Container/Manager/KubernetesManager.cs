@@ -94,7 +94,7 @@ public class KubernetesManager : IContainerManager
                     {
                         Name = name,
                         Image = config.Image,
-                        ImagePullPolicy = "Always",
+                        ImagePullPolicy = "IfNotPresent",
                         Env = envs,
                         Ports = [new V1ContainerPort { ContainerPort = config.ExposedPort }],
                         Resources = new V1ResourceRequirements
