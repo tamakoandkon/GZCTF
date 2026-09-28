@@ -88,6 +88,37 @@ public class KubernetesManager : IContainerManager
                 DnsPolicy = "None",
                 DnsConfig = new() { Nameservers = options.Dns ?? ["223.5.5.5", "114.114.114.114"] },
                 EnableServiceLinks = false,
+                // Spread challenge instances across nodes: requests are intentionally tiny
+                // (10m/32Mi), so NodeResourcesFit alone keeps piling every pod onto the node
+                // that happens to run fewer system pods, leaving one node idle.
+                Affinity = new V1Affinity
+                {
+                    PodAntiAffinity = new V1PodAntiAffinity
+                    {
+                        PreferredDuringSchedulingIgnoredDuringExecution =
+                        [
+                            new V1WeightedPodAffinityTerm
+                            {
+                                Weight = 100,
+                                PodAffinityTerm = new V1PodAffinityTerm
+                                {
+                                    TopologyKey = "kubernetes.io/hostname",
+                                    LabelSelector = new V1LabelSelector
+                                    {
+                                        MatchExpressions =
+                                        [
+                                            new V1LabelSelectorRequirement
+                                            {
+                                                Key = "gzctf.gzti.me/ResourceId",
+                                                OperatorProperty = "Exists"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
                 Containers =
                 [
                     new V1Container
