@@ -1,137 +1,67 @@
-# GZCTF 源码构建指南（1.8.7）
+# GZCTF 自定义版源码构建指南（v1.9.0）
 
-> 适用于当前部署：源码仓库 `/home/tamako/GZ/upgrade/gzctf-upgrade`（1.8.7），部署目录 `/home/tamako/GZ/deploy`，容器 `gzctf-187`（端口 36306）。
+本文说明如何在任意 Linux 服务器上从本仓库构建 GZCTF 镜像。源码、许可证和部署文件可以放在服务器上的任意目录；下面的命令不依赖固定用户名、IP、端口或容器名。
 
-## 环境要求
+## 准备环境
 
-- .NET SDK 10.0+（本机装在 `/usr/share/dotnet`，**不在 PATH 里**，需先 `export PATH=/usr/share/dotnet:$PATH`）
-- Node.js 22+
-- pnpm（`npm install -g pnpm`）
-- Docker & Docker Compose
+- .NET SDK 10.0（`dotnet --version`）
+- Node.js 22 或更新版本（`node --version`）及 pnpm（`pnpm --version`）
+- Docker，包含 BuildKit 和 Compose 插件
+- 有效的 Six Labors 许可证文件。请保存在仓库外，不要提交到 Git。
+- 构建时可访问 NuGet、npm，以及 Dockerfile 中下载 Satori 运行时文件的地址。
 
-## 目录结构
-
-```
-源码仓库 /home/tamako/GZ/upgrade/gzctf-upgrade/
-├── src/GZCTF/
-│   ├── Dockerfile              # 多阶段构建，COPY publish/linux/amd64 进镜像
-│   ├── ClientApp/              # React 前端源码
-│   ├── GZCTF.csproj            # PublishFrontend 目标会自动构建前端
-│   └── publish/linux/amd64/    # dotnet publish 输出（Docker 镜像的输入）
-│       └── wwwroot/static/     # 编译后的前端 JS/CSS
-
-部署目录 /home/tamako/GZ/deploy/
-├── docker-compose.yml          # 编排文件（无 build 段，直接用 gzctf-187-gzctf:local 镜像）
-├── appsettings.json            # 应用配置（只读挂载进容器）
-├── license/sixlabors.lic       # SixLabors 许可证（构建和运行都需要）
-└── data/                       # 持久化数据（data/db 数据库、data/files 上传文件）
-```
-
-## 构建步骤
-
-### 1. 修改源码
-
-- **前端**：`src/GZCTF/ClientApp/src/` 下的 `.tsx`/`.ts`/`.css` 文件
-- **后端**：`src/GZCTF/` 下的 `.cs` 文件
-
-### 2. 编译并发布
+克隆本仓库，并将许可证的**绝对路径**设为环境变量：
 
 ```bash
-export PATH=/usr/share/dotnet:$PATH
-cd /home/tamako/GZ/upgrade/gzctf-upgrade/src/GZCTF
+git clone -b develop https://github.com/tamakoandkon/GZCTF.git
+cd GZCTF
+export SIXLABORS_LICENSE_FILE=/path/to/sixlabors.lic
 
-dotnet publish -c Release -r linux-x64 --self-contained false \
-  -o publish/linux/amd64 \
-  -p:SixLaborsLicenseFile=/home/tamako/GZ/deploy/license/sixlabors.lic
+command -v dotnet && command -v node && command -v pnpm && command -v docker
+test -f "$SIXLABORS_LICENSE_FILE"
 ```
 
-> 会自动执行：`pnpm install` → `tsc` 类型检查 → `vite build` → 编译 .NET → 输出到指定目录。
->
-> ⚠️ **`-p:SixLaborsLicenseFile=...` 必填**，缺失会报 `No Six Labors license found` 并终止构建。
->
-> `-o` 必须指向当前目录下的 `publish/linux/amd64`，与 Dockerfile 中的 `COPY publish /build` 对应。
+请将 `/path/to/sixlabors.lic` 换成这台服务器上的实际路径。已有源码目录时，可直接进入该目录，从设置环境变量开始。
 
-### 3. 重建 Docker 镜像
+## 编译并构建镜像
+
+在仓库根目录执行以下命令。根据本机 CPU 架构选择 .NET 运行时标识和 Docker 平台：
 
 ```bash
-cd /home/tamako/GZ/upgrade/gzctf-upgrade/src/GZCTF
-docker build -t gzctf-187-gzctf:local .
+case "$(uname -m)" in
+  x86_64)       ARCH=amd64; RID=linux-x64 ;;
+  aarch64|arm64) ARCH=arm64; RID=linux-arm64 ;;
+  *) echo "不支持的 CPU 架构：$(uname -m)" >&2; exit 1 ;;
+esac
+
+cd src/GZCTF
+dotnet publish -c Release -r "$RID" --self-contained false \
+  -o "publish/linux/$ARCH" \
+  -p:SixLaborsLicenseFile="$SIXLABORS_LICENSE_FILE"
+
+docker build --platform "linux/$ARCH" -t gzctf:local .
 ```
 
-> 用仓库内的 `src/GZCTF/Dockerfile`，**context 必须是 `src/GZCTF`**（它 COPY `publish/${TARGETPLATFORM}`）。
->
-> Docker 缓存可能不会检测到文件变化，遇到前端修改没生效时强制重建：
+`dotnet publish` 会安装前端依赖并构建前端。`src/GZCTF/Dockerfile` 从构建上下文读取 `publish/linux/$ARCH`，所以 `docker build` 必须在 `src/GZCTF` 目录执行。镜像标签 `gzctf:local` 可以按需要改名，但部署配置中的 `image` 必须与之对应。
+
+## 部署或更新现有服务
+
+新服务器先按 [GZCTF 官方部署文档](https://gzctf.gzti.me/zh)准备数据库、持久化数据、运行配置和 Compose 文件。将 Compose 文件中平台服务的 `image` 设为刚构建的镜像标签，例如 `gzctf:local`。这些部署文件和密钥应保存在仓库外；端口、服务名及路径由各服务器自行配置。
+
+更新已有服务前，先备份数据库和持久化文件。随后在 **Compose 文件所在目录**执行：
 
 ```bash
-docker build --no-cache -t gzctf-187-gzctf:local .
+docker compose up -d <平台服务名>
+docker compose ps
 ```
 
-### 4. 重启服务
-
-```bash
-cd /home/tamako/GZ/deploy
-docker compose up -d gzctf
-```
-
-> compose 项目名为 `deploy`（来自目录名），`docker compose` 会自动重建容器为最新镜像。数据持久化在 `deploy/data/`，重启不丢数据。
-
-### 5. 验证
-
-```bash
-curl -s http://localhost:36306/ | head
-docker ps --filter name=gzctf
-```
-
-## 更新运行时配置
-
-页面 title、keywords 等配置存储在数据库 `Configs` 表中，修改源码不会影响它们。如需更新：
-
-```bash
-docker exec gzctf-187-db psql -U postgres -d gzctf -c \
-  "UPDATE public.\"Configs\" SET \"Value\" = '<新值>' WHERE \"ConfigKey\" = 'GlobalConfig:Title';"
-
-docker restart gzctf-187
-```
-
-常用 ConfigKey：
-
-| Key | 说明 |
-|-----|------|
-| `GlobalConfig:Title` | 页面标题 |
-| `GlobalConfig:Platform` | 平台名称（格式：`标题::CTF`） |
-| `GlobalConfig:Description` | 页面描述 |
-
-## 一键脚本
-
-```bash
-#!/bin/bash
-set -e
-REPO=/home/tamako/GZ/upgrade/gzctf-upgrade
-DEPLOY=/home/tamako/GZ/deploy
-
-echo "[1/4] dotnet publish..."
-export PATH=/usr/share/dotnet:$PATH
-cd $REPO/src/GZCTF
-dotnet publish -c Release -r linux-x64 --self-contained false \
-  -o publish/linux/amd64 \
-  -p:SixLaborsLicenseFile=$DEPLOY/license/sixlabors.lic
-
-echo "[2/4] docker build..."
-docker build -t gzctf-187-gzctf:local .
-
-echo "[3/4] docker compose up..."
-cd $DEPLOY
-docker compose up -d gzctf
-
-echo "[4/4] done"
-docker ps --filter name=gzctf
-```
+把 `<平台服务名>` 换成 Compose 文件里 GZCTF 服务的实际名称。访问该服务器配置的地址或健康检查路径验证运行状态。升级数据库后通常不能直接降回旧版本；需要回退时使用升级前的备份。
 
 ## 常见问题
 
-| 现象 | 处理 |
-|------|------|
-| 构建报 `No Six Labors license found` | `dotnet publish` 缺少 `-p:SixLaborsLicenseFile=...` |
-| 前端修改没生效 | `docker build --no-cache` 强制重建 |
-| 控制台报 `wsrx ... connection refused` | 1.8.7 的流量捕获守护进程 `@xdsec/wsrx`（127.0.0.1:3307）未部署，可选功能，不影响使用 |
-| 磁盘空间不足 | 清理旧镜像 `docker rmi gzctf-182-gzctf:latest`、旧构建产物 `src/GZCTF/ClientApp/build/` |
+| 现象 | 检查方法 |
+| --- | --- |
+| 提示缺少 Six Labors 许可证 | 检查 `SIXLABORS_LICENSE_FILE` 是否指向存在且可读的文件，并传入 `dotnet publish`。 |
+| `docker build` 找不到 `/build/linux/...` | 检查 `dotnet publish` 的输出目录是否为 `src/GZCTF/publish/linux/$ARCH`，并从 `src/GZCTF` 运行 `docker build`。 |
+| Dockerfile 下载 Satori 失败 | 检查构建机到 GitHub Releases 的网络连接，再重试镜像构建。 |
+| 更新镜像后服务仍是旧版本 | 检查 Compose 中的 `image` 标签与构建标签一致，并确认平台服务已重新创建。 |
