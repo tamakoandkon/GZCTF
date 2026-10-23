@@ -35,7 +35,7 @@ jobs:
       - uses: pnpm/action-setup@v6
         name: Install pnpm
         with:
-          version: 11
+          version: latest
 
       - name: Restore dependencies
         working-directory: src
@@ -124,7 +124,7 @@ jobs:
       - uses: pnpm/action-setup@v6
         name: Install pnpm
         with:
-          version: 11
+          version: latest
 
       - name: Restore dependencies
         working-directory: src
@@ -156,7 +156,7 @@ jobs:
         uses: dorny/test-reporter@v3
         if: always()
         with:
-          name: Integration Test Results (Cloud Mode - K3s + MinIO)
+          name: Integration Test Results (Cloud Mode - K3s + RustFS)
           path: src/GZCTF.Integration.Test/**/integration-test-results-cloud.trx
           reporter: dotnet-trx
 

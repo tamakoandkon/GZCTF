@@ -27,7 +27,7 @@ GZ::CTF is an open source CTF platform based on ASP.NET Core.
 >
 > **Upgrade and migration considerations:**
 >
-> 1. To upgrade the platform, simply pull the latest image and restart, and the database migration will be performed automatically.
+> 1. To upgrade the platform, simply pull the latest image and restart, and the database migration will be performed automatically. Images are published only to Docker Hub (`gztime/gzctf`) and GitHub Container Registry (`ghcr.io/gztimewalker/gzctf/gzctf`).
 > 2. In general, **downgrade** operations are not supported. Upgrading versions with a large time span may result in data incompatibility, so **please make sure to back up your data**.
 > 3. After the upgrade, there may be new configuration items and changes in file structure. It is recommended to consult the official documentation or the community.
 > 4. If you are migrating to another branch project, please pay attention to whether the database structure has changed. **The database after the change does not support rollback to the original version**.
@@ -69,7 +69,7 @@ GZ::CTF is an open source CTF platform based on ASP.NET Core.
 - Monitor submissions and major event logs during the competition
 - Challenges traffic forwarding based on **TCP over WebSocket proxy**, configurable traffic capture
 - Cluster cache based on Redis, database storage backend based on PGSQL
-- Storage backend based on local disk and **object storage (MinIO, S3, etc.)**
+- Storage backend based on local disk and **object storage (RustFS, S3, etc.)**
 - Customizable global configuration, platform title, record information
 - Support for **dark mode**, multiple languages, and custom themes
 - Customizable **website footer**, **website favicon**, and **html description** for SEO

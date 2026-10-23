@@ -15,12 +15,13 @@ import {
 import { showNotification } from '@mantine/notifications'
 import { mdiCheck, mdiClose, mdiDiceMultiple, mdiMinusCircle } from '@mdi/js'
 import { Icon } from '@mdi/react'
-import { FC, useEffect, useMemo, useState } from 'react'
+import { FC, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollingText } from '@Components/ScrollingText'
 import { PermissionDot, PermissionSelector } from '@Components/admin/PermissionSelector'
 import { PERMISSION_DEFINITIONS, permissionMaskToArray } from '@Utils/Permission'
 import { randomInviteCode, showErrorMsg } from '@Utils/Shared'
+import { useSyncOnChange } from '@Hooks/useSyncOnChange'
 import { ChallengeInfoModel, Division, DivisionCreateModel, GamePermission } from '@Api'
 import api from '@Api'
 
@@ -116,12 +117,12 @@ export const DivisionEditDrawer: FC<DivisionEditDrawerProps> = ({
     setChallengePermissions(overrides)
   }
 
-  useEffect(() => {
+  useSyncOnChange([division, opened], () => {
     if (opened) {
       resetForm()
       setLoading(false)
     }
-  }, [division, opened])
+  })
 
   const handleChallengeSelection = (values: string[]) => {
     setSelectedChallenges(values)
