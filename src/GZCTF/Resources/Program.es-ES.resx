@@ -352,6 +352,18 @@
   <data name="ContainerManager_DockerMode" xml:space="preserve">
     <value>Modo de contenedor: Controles de contenedor de instancia Docker</value>
   </data>
+  <data name="ContainerManager_ImageInspectFailed" xml:space="preserve">
+    <value>No se pudo inspeccionar la imagen del contenedor {0}</value>
+  </data>
+  <data name="ContainerManager_ImageMissing" xml:space="preserve">
+    <value>Falta la imagen del contenedor {0} al crear el contenedor</value>
+  </data>
+  <data name="ContainerManager_ImageNotFound" xml:space="preserve">
+    <value>La imagen del contenedor {0} no está presente localmente y la política de descarga de imágenes no permite descargarla</value>
+  </data>
+  <data name="ContainerManager_ImagePullFailed" xml:space="preserve">
+    <value>No se pudo descargar la imagen del contenedor {0}</value>
+  </data>
   <data name="ContainerManager_K8sMode" xml:space="preserve">
     <value>Modo de contenedor: Control de contenedor de pod de clúster K8s</value>
   </data>
@@ -1106,5 +1118,38 @@
   </data>
   <data name="Challenge_AlreadySolved" xml:space="preserve">
     <value>Ya has resuelto este desafío, no es necesario enviar de nuevo</value>
+  </data>
+  <data name="Account_PasskeyFailed" xml:space="preserve">
+    <value>No se pudo verificar la llave de acceso o la cuenta. Inténtalo de nuevo.</value>
+  </data>
+  <data name="Account_PasskeyLimit" xml:space="preserve">
+    <value>Puedes registrar hasta {0} llaves de acceso.</value>
+  </data>
+  <data name="Auth_InvalidRequestToken" xml:space="preserve">
+    <value>No se pudo verificar tu solicitud. Actualiza la página e inténtalo de nuevo.</value>
+  </data>
+  <data name="Account_UserLockedOut" xml:space="preserve">
+    <value>Tu cuenta está bloqueada temporalmente. Inténtalo de nuevo más tarde.</value>
+  </data>
+  <data name="Account_PasskeyAdded" xml:space="preserve">
+    <value>Llave de acceso añadida</value>
+  </data>
+  <data name="Account_PasskeyRenamed" xml:space="preserve">
+    <value>Nombre de la llave de acceso cambiado</value>
+  </data>
+  <data name="Account_PasskeyRemoved" xml:space="preserve">
+    <value>Llave de acceso eliminada</value>
+  </data>
+  <data name="Model_PasskeyCredentialRequired" xml:space="preserve">
+    <value>Se requiere la respuesta de la llave de acceso</value>
+  </data>
+  <data name="Model_PasskeyCredentialTooLong" xml:space="preserve">
+    <value>La respuesta de la llave de acceso es demasiado grande</value>
+  </data>
+  <data name="Model_PasskeyNameRequired" xml:space="preserve">
+    <value>Se requiere un nombre para la llave de acceso</value>
+  </data>
+  <data name="Model_PasskeyNameTooLong" xml:space="preserve">
+    <value>El nombre de la llave de acceso no puede superar los {1} caracteres</value>
   </data>
 </root>

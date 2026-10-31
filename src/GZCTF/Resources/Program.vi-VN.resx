@@ -347,6 +347,18 @@
   <data name="ContainerManager_DockerMode" xml:space="preserve">
     <value>Container mode：Docker Instance Container Controls</value>
   </data>
+  <data name="ContainerManager_ImageInspectFailed" xml:space="preserve">
+    <value>Không thể kiểm tra image container {0}</value>
+  </data>
+  <data name="ContainerManager_ImageMissing" xml:space="preserve">
+    <value>Không tìm thấy image container {0} khi tạo container</value>
+  </data>
+  <data name="ContainerManager_ImageNotFound" xml:space="preserve">
+    <value>Image container {0} không có sẵn cục bộ và chính sách kéo image không cho phép kéo</value>
+  </data>
+  <data name="ContainerManager_ImagePullFailed" xml:space="preserve">
+    <value>Không thể kéo image container {0}</value>
+  </data>
   <data name="ContainerManager_K8sMode" xml:space="preserve">
     <value>Container Mode：K8s Cluster Pod Container Control</value>
   </data>
@@ -1090,5 +1102,38 @@
   </data>
   <data name="Challenge_AlreadySolved" xml:space="preserve">
     <value>Bạn đã giải quyết thử thách này, không cần gửi lại</value>
+  </data>
+  <data name="Account_PasskeyFailed" xml:space="preserve">
+    <value>Không thể xác minh passkey hoặc tài khoản. Vui lòng thử lại.</value>
+  </data>
+  <data name="Account_PasskeyLimit" xml:space="preserve">
+    <value>Bạn có thể đăng ký tối đa {0} passkey.</value>
+  </data>
+  <data name="Auth_InvalidRequestToken" xml:space="preserve">
+    <value>Không thể xác minh yêu cầu của bạn. Vui lòng tải lại trang và thử lại.</value>
+  </data>
+  <data name="Account_UserLockedOut" xml:space="preserve">
+    <value>Tài khoản của bạn tạm thời bị khóa. Vui lòng thử lại sau.</value>
+  </data>
+  <data name="Account_PasskeyAdded" xml:space="preserve">
+    <value>Đã thêm passkey</value>
+  </data>
+  <data name="Account_PasskeyRenamed" xml:space="preserve">
+    <value>Đã đổi tên passkey</value>
+  </data>
+  <data name="Account_PasskeyRemoved" xml:space="preserve">
+    <value>Đã xóa passkey</value>
+  </data>
+  <data name="Model_PasskeyCredentialRequired" xml:space="preserve">
+    <value>Cần có phản hồi passkey</value>
+  </data>
+  <data name="Model_PasskeyCredentialTooLong" xml:space="preserve">
+    <value>Phản hồi passkey quá lớn</value>
+  </data>
+  <data name="Model_PasskeyNameRequired" xml:space="preserve">
+    <value>Cần có tên passkey</value>
+  </data>
+  <data name="Model_PasskeyNameTooLong" xml:space="preserve">
+    <value>Tên passkey không được vượt quá {1} ký tự</value>
   </data>
 </root>
