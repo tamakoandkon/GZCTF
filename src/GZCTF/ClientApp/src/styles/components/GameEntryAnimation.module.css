@@ -6,6 +6,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
+  isolation: isolate;
   transition: transform 0.5s ease-in, opacity 0.5s ease-in;
 }
 
@@ -56,11 +57,14 @@
   background-position: center;
   background-repeat: no-repeat;
   background-color: #0f1826;
-  transform: translate3d(0, 0, 0) scale(1);
-  clip-path: circle(var(--intro-initial-radius) at center);
+  transform: scale(1);
   transition:
+    top 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    left 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.8s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
-    clip-path 0.8s cubic-bezier(0.22, 1, 0.36, 1),
     filter 0.8s ease;
   filter: blur(0px);
   box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
@@ -78,8 +82,13 @@
 .overlay[data-phase='expand'] .poster,
 .overlay[data-phase='logo'] .poster,
 .overlay[data-phase='exit'] .poster {
-  transform: translate3d(var(--intro-translate-x), var(--intro-translate-y), 0) scale(var(--intro-scale));
-  clip-path: circle(var(--intro-target-radius) at center);
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  /* Cover the viewport first, then add only 10% zoom to the poster. */
+  transform: scale(1.1);
   filter: blur(4px);
 }
 
@@ -121,20 +130,24 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  z-index: 10;
+  /* Keep the title's blend backdrop connected to the poster. */
 }
 
 /* Title text for entry animation */
 .title {
+  position: relative;
+  z-index: 10;
   margin-top: 20px;
   transform: translateX(-120vw) translateZ(0);
   opacity: 0;
   white-space: nowrap;
-  color: var(--mantine-color-text);
-  font-weight: 600;   
+  /* White difference blending inverts the actual backdrop, even for remote posters. */
+  color: #fff;
+  mix-blend-mode: difference;
+  font-weight: 600;
   text-align: center;
   transition: transform 0.4s ease-out, opacity 0.4s ease-out;
-  font-size: clamp(16px, 2.5vw, 22px);
+  font-size: clamp(24px, 3.75vw, 33px);
   backface-visibility: hidden;
 }
 

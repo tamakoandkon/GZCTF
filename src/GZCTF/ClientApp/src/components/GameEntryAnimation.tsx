@@ -17,11 +17,6 @@ type IntroStyle = CSSProperties & {
   '--intro-left': string
   '--intro-width': string
   '--intro-height': string
-  '--intro-translate-x': string
-  '--intro-translate-y': string
-  '--intro-scale': string
-  '--intro-initial-radius': string
-  '--intro-target-radius': string
 }
 
 export const GameEntryAnimation: FC<GameEntryAnimationProps> = ({ gameId, poster, onCompleted }) => {
@@ -35,32 +30,13 @@ export const GameEntryAnimation: FC<GameEntryAnimationProps> = ({ gameId, poster
       return null
     }
 
-    if (typeof window === 'undefined') {
-      return null
-    }
-
     const { top, left, width, height } = transitionState
-
-    const initialRadius = Math.max(width, height) / 2
-    const diagonal = Math.hypot(window.innerWidth, window.innerHeight)
-    const targetRadius = diagonal
-
-    const translateX = window.innerWidth / 2 - (left + width / 2)
-    const translateY = window.innerHeight / 2 - (top + height / 2)
-
-    // Adjust scale to reduce zoom so that at least ~90% of poster is visible
-    const scale = initialRadius === 0 ? 1 : (targetRadius / initialRadius) * 1.0
 
     const style: IntroStyle = {
       '--intro-top': `${top}px`,
       '--intro-left': `${left}px`,
       '--intro-width': `${width}px`,
       '--intro-height': `${height}px`,
-      '--intro-translate-x': `${translateX}px`,
-      '--intro-translate-y': `${translateY}px`,
-      '--intro-scale': `${scale}`,
-      '--intro-initial-radius': `${initialRadius}px`,
-      '--intro-target-radius': `${targetRadius}px`,
     }
 
     return style
@@ -114,7 +90,7 @@ export const GameEntryAnimation: FC<GameEntryAnimationProps> = ({ gameId, poster
       <div className={classes.poster} style={{ backgroundImage: appliedPoster ? `url("${appliedPoster}")` : undefined }} />
       <div className={classes.contentWrapper}>
         <div className={classes.logoWrapper}>
-          <LogoBox size="5rem" className={classes.logo} />
+          <LogoBox size="7.5rem" className={classes.logo} />
         </div>
         <div className={classes.title}>{config?.title ?? ''}</div>
       </div>
