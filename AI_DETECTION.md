@@ -1,7 +1,7 @@
 # Dynamic-instance AI identification probe
 
 This optional feature asks AI agents that read an instance's HTTP response
-headers to identify themselves on later requests. A matching `X-LLM-Id` request
+headers to identify themselves on later requests. A matching `X-Lim-Id` request
 header creates a **review signal** in Game → Monitor → Possible AI Use. It does
 not prove that a player used AI: a person can send that header, and many agents
 never see response headers.
@@ -32,6 +32,7 @@ maps the public Service to the proxy port. The challenge port is not published.
 The proxy adds `X-LLM-Agent-Instruction` to normal HTTP responses and reports
 the first 20 distinct model identifiers it sees on that instance. The report
 token is unique to the instance and is never exposed in the public response.
+For compatibility, the proxy also accepts `X-LLM-Id` on incoming requests.
 
 The game monitor shows the team, challenge, reported model or agent, and first
 observation time. Since a team shares an instance, the signal cannot identify
