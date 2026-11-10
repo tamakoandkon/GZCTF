@@ -10,7 +10,7 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { GameProgress } from '@Components/GameProgress'
 import { IconTabs } from '@Components/IconTabs'
 import { RequireRole } from '@Components/WithRole'
-import { DEFAULT_LOADING_OVERLAY } from '@Utils/Shared'
+import { DEFAULT_LOADING_OVERLAY, showErrorMsg } from '@Utils/Shared'
 import { getGameStatus, useGame } from '@Hooks/useGame'
 import { usePageTitle } from '@Hooks/usePageTitle'
 import { useUserRole } from '@Hooks/useUser'
@@ -59,8 +59,17 @@ export const WithGameTab: FC<React.PropsWithChildren> = ({ children }) => {
   const navigate = useNavigate()
 
   const { role } = useUserRole()
-  const { game, status } = useGame(numId)
+  const { game, error, status } = useGame(numId)
   const { t } = useTranslation()
+
+  // Hidden games are not accessible to the player side; the API answers 404
+  // to avoid leaking their existence, so leave the page like for a missing game.
+  useEffect(() => {
+    if (error) {
+      showErrorMsg(error, t)
+      navigate('/games')
+    }
+  }, [error, navigate])
 
   const finished = isGameFinished(game)
 

@@ -99,4 +99,23 @@ public static class ContextHelper
     /// <param name="context">The request context.</param>
     /// <returns></returns>
     public static Task<bool> HasUser(HttpContext context) => HasPrivilege(context, Role.User);
+
+    /// <summary>
+    /// Checks if the current request's user already takes part in the specified game.
+    /// </summary>
+    /// <param name="context">The request context.</param>
+    /// <param name="gameId">The game identifier.</param>
+    /// <param name="token">The cancellation token.</param>
+    /// <returns></returns>
+    public static async Task<bool> HasParticipation(HttpContext context, int gameId,
+        CancellationToken token = default)
+    {
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null || !Guid.TryParse(userId, out var id))
+            return false;
+
+        var dbContext = context.RequestServices.GetRequiredService<AppDbContext>();
+        return await dbContext.UserParticipations.AnyAsync(p => p.GameId == gameId && p.UserId == id, token);
+    }
 }
