@@ -189,6 +189,10 @@
           "description": "Capturing the traffic when the team solves challenges. Platform proxy needs to be enabled",
           "label": "Enable Traffic Capture"
         },
+        "ai_detection": {
+          "description": "Ask agents to identify themselves on dynamic HTTP instances. Matches require manual review.",
+          "label": "Enable AI Detection"
+        },
         "type": {
           "description": "Cannot be changed after creation",
           "label": "Type"

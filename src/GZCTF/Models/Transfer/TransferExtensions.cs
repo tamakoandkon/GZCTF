@@ -91,6 +91,7 @@ public static class TransferExtensions
                     Template = content.FlagTemplate,
                     DisableBloodBonus = challenge.DisableBloodBonus,
                     EnableTrafficCapture = challenge.EnableTrafficCapture,
+                    EnableAiDetection = challenge.EnableAiDetection,
                     // For dynamic challenges with FlagTemplate, don't export the template flag to Static list
                     // to avoid duplication during import. Note: linked challenge flags live on the pool
                     // and are not duplicated in the game package.
@@ -269,6 +270,8 @@ public static class TransferExtensions
                 FlagTemplate = transfer.Flags.Template,
                 DisableBloodBonus = transfer.Flags.DisableBloodBonus,
                 EnableTrafficCapture = transfer.Flags.EnableTrafficCapture,
+                EnableAiDetection = transfer.Type == ChallengeType.DynamicContainer &&
+                                    transfer.Flags.EnableAiDetection,
                 Hints = transfer.Hints
             };
 

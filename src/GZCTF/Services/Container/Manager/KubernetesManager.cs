@@ -33,6 +33,23 @@ public class KubernetesManager : IContainerManager
     public async Task<Models.Data.Container?> CreateContainerAsync(ContainerConfig config,
         CancellationToken token = default)
     {
+        if (config.EnableAiDetection &&
+            (!Uri.TryCreate(_meta.AiDetectionCallbackUrl, UriKind.Absolute, out var callback) ||
+             (callback.Scheme != Uri.UriSchemeHttp && callback.Scheme != Uri.UriSchemeHttps)))
+        {
+            _logger.LogWarning("AI detection requires ContainerProvider:AiDetectionCallbackUrl");
+            return null;
+        }
+
+        if (config.EnableAiDetection && config.NetworkMode == NetworkMode.Isolated &&
+            !IPAddress.TryParse(new Uri(_meta.AiDetectionCallbackUrl).Host, out _))
+        {
+            _logger.LogWarning("Isolated AI-detected instances require an IP-based callback URL");
+            return null;
+        }
+
+        var probePort = config.ExposedPort == 18080 ? 18081 : 18080;
+        var probeToken = config.EnableAiDetection ? Guid.NewGuid() : (Guid?)null;
         var imageName = config.Image.Split("/").LastOrDefault()?.Split(":").FirstOrDefault();
 
         if (string.IsNullOrWhiteSpace(imageName))
@@ -148,6 +165,47 @@ public class KubernetesManager : IContainerManager
             }
         };
 
+        if (config.EnableAiDetection)
+        {
+            pod.Metadata.Labels["gzctf.gzti.me/AiDetection"] = "enabled";
+            pod.Spec.Containers.Add(new V1Container
+            {
+                Name = "ai-detection-proxy",
+                Image = _meta.AiDetectionProxyImage,
+                ImagePullPolicy = "IfNotPresent",
+                Command = ["node", "-e", AiProbeScript.Source],
+                Env =
+                [
+                    new V1EnvVar { Name = "AI_PROBE_PORT", Value = probePort.ToString() },
+                    new V1EnvVar { Name = "AI_CHALLENGE_PORT", Value = config.ExposedPort.ToString() },
+                    new V1EnvVar { Name = "AI_CALLBACK_URL", Value = _meta.AiDetectionCallbackUrl },
+                    new V1EnvVar { Name = "AI_PROBE_TOKEN", Value = probeToken!.Value.ToString() }
+                ],
+                Ports = [new V1ContainerPort { ContainerPort = probePort }],
+                ReadinessProbe = new V1Probe
+                {
+                    HttpGet = new V1HTTPGetAction
+                    {
+                        Path = "/__gzctf_ai_probe_health",
+                        Port = probePort
+                    },
+                    InitialDelaySeconds = 1,
+                    PeriodSeconds = 5
+                },
+                Resources = new V1ResourceRequirements
+                {
+                    Limits = new Dictionary<string, ResourceQuantity>
+                    {
+                        ["cpu"] = new("100m"), ["memory"] = new("64Mi")
+                    },
+                    Requests = new Dictionary<string, ResourceQuantity>
+                    {
+                        ["cpu"] = new("10m"), ["memory"] = new("32Mi")
+                    }
+                }
+            });
+        }
+
         try
         {
             pod = await _client.CreateNamespacedPodAsync(pod, options.Namespace, cancellationToken: token);
@@ -187,7 +245,11 @@ public class KubernetesManager : IContainerManager
             Spec = new V1ServiceSpec
             {
                 Type = _meta.ExposePort ? "NodePort" : "ClusterIP",
-                Ports = [new V1ServicePort { Port = config.ExposedPort, TargetPort = config.ExposedPort }],
+                Ports = [new V1ServicePort
+                {
+                    Port = config.EnableAiDetection ? probePort : config.ExposedPort,
+                    TargetPort = config.EnableAiDetection ? probePort : config.ExposedPort
+                }],
                 Selector = new Dictionary<string, string> { ["gzctf.gzti.me/ResourceId"] = name }
             }
         };
@@ -233,7 +295,8 @@ public class KubernetesManager : IContainerManager
         {
             ContainerId = name,
             Image = config.Image,
-            Port = config.ExposedPort,
+            Port = config.EnableAiDetection ? probePort : config.ExposedPort,
+            AiDetectionToken = probeToken,
             IP = service.Spec.ClusterIP,
             IsProxy = !_meta.ExposePort,
             // No tracking for k8s-managed containers

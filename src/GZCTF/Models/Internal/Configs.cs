@@ -418,6 +418,10 @@ public class ContainerProvider
     public ContainerProviderType Type { get; set; } = ContainerProviderType.Docker;
     public ContainerPortMappingType PortMappingType { get; set; } = ContainerPortMappingType.Default;
     public bool EnableTrafficCapture { get; set; }
+    /// <summary>Internal HTTP endpoint reached by AI probe sidecars.</summary>
+    public string AiDetectionCallbackUrl { get; set; } = string.Empty;
+    /// <summary>Node.js image used for the instance-local HTTP probe.</summary>
+    public string AiDetectionProxyImage { get; set; } = "node:24-alpine";
     public string PublicEntry { get; set; } = string.Empty;
     public KubernetesConfig? KubernetesConfig { get; set; }
     public DockerConfig? DockerConfig { get; set; }

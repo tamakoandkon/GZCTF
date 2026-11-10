@@ -608,6 +608,17 @@ const GameChallengeEdit: FC = () => {
                 )}
                 onChange={(e) => setChallengeInfo({ ...challengeInfo, enableTrafficCapture: e.target.checked })}
               />
+              {type === ChallengeType.DynamicContainer && (
+                <Switch
+                  disabled={disabled}
+                  checked={challengeInfo.enableAiDetection ?? false}
+                  label={SwitchLabel(
+                    t('admin.content.games.challenges.ai_detection.label'),
+                    t('admin.content.games.challenges.ai_detection.description')
+                  )}
+                  onChange={(e) => setChallengeInfo({ ...challengeInfo, enableAiDetection: e.target.checked })}
+                />
+              )}
             </Grid.Col>
           </Grid>
         )}

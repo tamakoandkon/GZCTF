@@ -120,6 +120,8 @@ public class ChallengeEditDetailModel
     /// </summary>
     public bool? EnableTrafficCapture { get; set; } = false;
 
+    public bool? EnableAiDetection { get; set; } = false;
+
     /// <summary>
     /// Whether to disable blood bonus
     /// </summary>
@@ -183,6 +185,7 @@ public class ChallengeEditDetailModel
             ExposePort = chal.EffectiveContent.ExposePort,
             NetworkMode = chal.EffectiveContent.NetworkMode,
             EnableTrafficCapture = chal.EnableTrafficCapture,
+            EnableAiDetection = chal.EnableAiDetection,
             DisableBloodBonus = chal.DisableBloodBonus,
             OriginalScore = chal.OriginalScore,
             MinScoreRate = chal.MinScoreRate,

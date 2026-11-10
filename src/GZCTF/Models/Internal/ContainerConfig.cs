@@ -42,6 +42,8 @@ public class ContainerConfig
     /// </summary>
     public bool EnableTrafficCapture { get; set; }
 
+    public bool EnableAiDetection { get; set; }
+
     /// <summary>
     /// Memory limit (MB)
     /// </summary>

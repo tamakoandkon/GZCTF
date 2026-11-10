@@ -220,6 +220,8 @@ public class GameInstanceRepository(
             StorageLimit = content.StorageLimit ?? 256,
             NetworkMode = content.NetworkMode ?? NetworkMode.Open,
             EnableTrafficCapture = challenge.EnableTrafficCapture && game.IsActive,
+            EnableAiDetection = challenge.EnableAiDetection && game.IsActive &&
+                                content.Type == ChallengeType.DynamicContainer,
             ExposedPort = content.ExposePort ??
                           throw new ArgumentException(
                               localizer[nameof(Resources.Program.InstanceRepository_InvalidPort)])

@@ -143,6 +143,8 @@ public class FlagsSection
 
     public bool EnableTrafficCapture { get; set; }
 
+    public bool EnableAiDetection { get; set; }
+
     /// <summary>
     /// Dynamic flag template (null = no dynamic flag)
     /// </summary>

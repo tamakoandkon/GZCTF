@@ -21,7 +21,7 @@ import { useParams } from 'react-router'
 import { showErrorMsg } from '@Utils/Shared'
 import { ChallengeCategoryItem, ChallengeCategoryList, useChallengeCategoryLabelMap } from '@Utils/Shared'
 import { useEditPools } from '@Hooks/useEdit'
-import api, { ChallengeCategory, PoolChallengeInfoModel } from '@Api'
+import api, { ChallengeCategory, ChallengeType, PoolChallengeInfoModel } from '@Api'
 
 interface PoolChallengePickerModalProps extends ModalProps {
   onAdded: () => void
@@ -44,6 +44,7 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
   const [difficulty, setDifficulty] = useState<number | undefined>(5)
   const [disableBloodBonus, setDisableBloodBonus] = useState(false)
   const [enableTrafficCapture, setEnableTrafficCapture] = useState(false)
+  const [enableAiDetection, setEnableAiDetection] = useState(false)
   const [disabled, setDisabled] = useState(false)
 
   const filtered = (pools ?? []).filter(
@@ -63,6 +64,7 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
         difficulty,
         disableBloodBonus,
         enableTrafficCapture,
+        enableAiDetection,
       })
       showNotification({
         color: 'teal',
@@ -152,6 +154,13 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
               label={t('admin.content.games.challenges.traffic_capture.label')}
               onChange={(e) => setEnableTrafficCapture(e.target.checked)}
             />
+            {selected?.type === ChallengeType.DynamicContainer && (
+              <Switch
+                checked={enableAiDetection}
+                label={t('admin.content.games.challenges.ai_detection.label')}
+                onChange={(e) => setEnableAiDetection(e.target.checked)}
+              />
+            )}
           </>
         )}
         <Button fullWidth disabled={disabled || !selected} onClick={onLink}>

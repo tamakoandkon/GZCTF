@@ -25,6 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
     public DbSet<Division> Divisions { get; set; } = null!;
     public DbSet<LocalFile> Files { get; set; } = null!;
     public DbSet<CheatInfo> CheatInfo { get; set; } = null!;
+    public DbSet<AiDetectionEvent> AiDetectionEvents { get; set; } = null!;
     public DbSet<Container> Containers { get; set; } = null!;
     public DbSet<GameEvent> GameEvents { get; set; } = null!;
     public DbSet<Submission> Submissions { get; set; } = null!;

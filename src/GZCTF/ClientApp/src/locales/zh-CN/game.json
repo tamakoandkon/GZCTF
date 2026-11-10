@@ -228,6 +228,7 @@
     "challenge": "比赛题目",
     "monitor": {
       "cheatinfo": "作弊信息",
+      "ai_detection": "疑似 AI 使用",
       "events": "事件监控",
       "index": "比赛监控",
       "submissions": "提交记录",

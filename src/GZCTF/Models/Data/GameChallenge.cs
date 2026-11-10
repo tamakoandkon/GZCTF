@@ -12,6 +12,11 @@ public class GameChallenge : Challenge
     public bool EnableTrafficCapture { get; set; }
 
     /// <summary>
+    /// Probe HTTP traffic for voluntary AI agent identification on dynamic instances.
+    /// </summary>
+    public bool EnableAiDetection { get; set; }
+
+    /// <summary>
     /// Whether to disable blood bonus
     /// </summary>
     public bool DisableBloodBonus { get; set; }
@@ -94,6 +99,8 @@ public class GameChallenge : Challenge
 
         // Container only
         EnableTrafficCapture = Type.IsContainer() && (model.EnableTrafficCapture ?? EnableTrafficCapture);
+        EnableAiDetection = Type == ChallengeType.DynamicContainer &&
+                            (model.EnableAiDetection ?? EnableAiDetection);
     }
 
     #region Db Relationship

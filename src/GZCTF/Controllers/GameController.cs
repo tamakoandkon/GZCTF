@@ -513,6 +513,38 @@ public class GameController(
     }
 
     /// <summary>
+    /// List voluntary AI identifiers observed on this game's dynamic instances.
+    /// A matching request header is a review signal, not proof of cheating.
+    /// </summary>
+    [RequireMonitor]
+    [HttpGet("{id:int}/AiDetections")]
+    [ProducesResponseType(typeof(AiDetectionInfoModel[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AiDetections([FromRoute] int id, CancellationToken token = default)
+    {
+        var game = await gameRepository.GetGameById(id, token);
+        if (game is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        var events = await dbContext.AiDetectionEvents.AsNoTracking()
+            .Where(e => e.GameId == id)
+            .OrderByDescending(e => e.SeenAt)
+            .Take(500)
+            .Select(e => new AiDetectionInfoModel
+            {
+                ChallengeId = e.ChallengeId,
+                ChallengeTitle = e.ChallengeTitle,
+                TeamId = e.TeamId,
+                TeamName = e.TeamName,
+                ParticipationId = e.ParticipationId,
+                ModelId = e.ModelId,
+                SeenAt = e.SeenAt
+            })
+            .ToArrayAsync(token);
+        return Ok(events);
+    }
+
+    /// <summary>
     /// Get challenges with traffic capturing enabled
     /// </summary>
     /// <remarks>

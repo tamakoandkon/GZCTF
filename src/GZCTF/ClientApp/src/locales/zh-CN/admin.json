@@ -189,6 +189,10 @@
           "description": "捕获队伍解题流量，需要开启平台代理",
           "label": "开启流量捕获"
         },
+        "ai_detection": {
+          "description": "为动态 HTTP 实例加入模型自报探针；命中仅作为人工复核线索",
+          "label": "开启 AI 做题检测"
+        },
         "type": {
           "description": "创建后不可更改",
           "label": "题目类型"

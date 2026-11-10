@@ -82,6 +82,11 @@ public class DockerManager : IContainerManager
     public async Task<Models.Data.Container?> CreateContainerAsync(GZCTF.Models.Internal.ContainerConfig config,
         CancellationToken token = default)
     {
+        if (config.EnableAiDetection)
+        {
+            _logger.LogWarning("AI detection is currently supported only by the Kubernetes container provider");
+            return null;
+        }
         var imageName = config.Image.Split("/").LastOrDefault()?.Split(":").FirstOrDefault();
 
         if (string.IsNullOrWhiteSpace(imageName))

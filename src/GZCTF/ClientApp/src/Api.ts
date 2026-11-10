@@ -1291,6 +1291,7 @@ export interface ChallengeEditDetailModel {
   networkMode?: NetworkMode | null;
   /** Whether to record traffic */
   enableTrafficCapture?: boolean | null;
+  enableAiDetection?: boolean | null;
   /** Whether to disable blood bonus */
   disableBloodBonus?: boolean | null;
   /**
@@ -1486,6 +1487,7 @@ export interface ChallengeUpdateModel {
   networkMode?: NetworkMode | null;
   /** Is traffic capture enabled (disabled by default) */
   enableTrafficCapture?: boolean | null;
+  enableAiDetection?: boolean | null;
   /** Is blood bonus disabled (enable by default) */
   disableBloodBonus?: boolean | null;
   /**
@@ -1805,6 +1807,7 @@ export interface GameChallengeFromPoolModel {
   disableBloodBonus?: boolean | null;
   /** Is traffic capture enabled (disabled by default) */
   enableTrafficCapture?: boolean | null;
+  enableAiDetection?: boolean | null;
 }
 
 /** Basic exercise information */

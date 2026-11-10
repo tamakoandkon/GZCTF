@@ -1,12 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 
 namespace GZCTF.Models.Data;
 
 [Index(nameof(GameInstanceId))]
 [Index(nameof(ExerciseInstanceId))]
+[Index(nameof(AiDetectionToken), IsUnique = true)]
 public class Container
 {
     /// <summary>
@@ -62,6 +64,12 @@ public class Container
     /// </summary>
     [Required]
     public bool IsProxy { get; set; }
+
+    /// <summary>
+    /// Secret used by the instance-local HTTP probe to report observations.
+    /// </summary>
+    [JsonIgnore]
+    public Guid? AiDetectionToken { get; set; }
 
     /// <summary>
     /// Local IP
