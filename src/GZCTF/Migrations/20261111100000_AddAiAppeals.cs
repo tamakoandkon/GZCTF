@@ -17,7 +17,12 @@ public partial class AddAiAppeals : Migration
         migrationBuilder.AddColumn<Guid>("AiBanEventId", "Participations", type: "uuid", nullable: true);
         migrationBuilder.AddColumn<int>("AiAppealId", "Participations", type: "integer", nullable: true);
         migrationBuilder.CreateIndex("IX_Participations_AiAppealId", "Participations", "AiAppealId");
-        migrationBuilder.AddForeignKey("FK_Participations_LocalFiles_AiAppealId", "Participations", "AiAppealId", "LocalFiles", "Id");
+        migrationBuilder.AddForeignKey(
+            name: "FK_Participations_LocalFiles_AiAppealId",
+            table: "Participations",
+            column: "AiAppealId",
+            principalTable: "LocalFiles",
+            principalColumn: "Id");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
