@@ -13,6 +13,9 @@ never see response headers.
   needs access to the Docker daemon, and the probe image must be available to it.
 - Dynamic container challenge serving plaintext HTTP on its configured port.
   HTTPS inside the challenge container cannot be inspected by this proxy.
+  Raw TCP services, including typical Pwn challenges reached with `nc`, do not
+  support HTTP response headers. Keep the probe disabled for these challenges;
+  placing the HTTP proxy in front of them would break their protocol.
 - A reachable callback URL and an image containing Node.js 24. Set these under
   `ContainerProvider` in the platform configuration:
 

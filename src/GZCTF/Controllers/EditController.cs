@@ -47,6 +47,10 @@ public class EditController(
     IOptions<ContainerProvider> containerProvider,
     IStringLocalizer<Program> localizer) : Controller
 {
+    private static bool HasValidAiCallback(ContainerProvider config) =>
+        Uri.TryCreate(config.AiDetectionCallbackUrl, UriKind.Absolute, out var callback) &&
+        (callback.Scheme == Uri.UriSchemeHttp || callback.Scheme == Uri.UriSchemeHttps);
+
     /// <summary>
     /// Add Post
     /// </summary>
@@ -728,9 +732,11 @@ public class EditController(
             return BadRequest(new RequestResponse("AI detection is only available for dynamic container challenges."));
 
         if (model.EnableAiDetection is true &&
-            (containerProvider.Value.Type != ContainerProviderType.Kubernetes ||
-             !Uri.TryCreate(containerProvider.Value.AiDetectionCallbackUrl, UriKind.Absolute, out _)))
-            return BadRequest(new RequestResponse("AI detection requires a Kubernetes provider and an AI callback URL."));
+            (res.IsLinked ? content.Category : model.Category ?? content.Category) == ChallengeCategory.Pwn)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionPwnNotSupported)]));
+
+        if (model.EnableAiDetection is true && !HasValidAiCallback(containerProvider.Value))
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionCallbackRequired)]));
 
         if (model.FileName is not null && string.IsNullOrWhiteSpace(model.FileName))
             return BadRequest(
@@ -1550,11 +1556,14 @@ public class EditController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        if (model.EnableAiDetection is true &&
-            (pool.Type != ChallengeType.DynamicContainer ||
-             containerProvider.Value.Type != ContainerProviderType.Kubernetes ||
-             !Uri.TryCreate(containerProvider.Value.AiDetectionCallbackUrl, UriKind.Absolute, out _)))
-            return BadRequest(new RequestResponse("AI detection requires a dynamic container and a configured Kubernetes provider."));
+        if (model.EnableAiDetection is true && pool.Type != ChallengeType.DynamicContainer)
+            return BadRequest(new RequestResponse("AI detection is only available for dynamic container challenges."));
+
+        if (model.EnableAiDetection is true && pool.Category == ChallengeCategory.Pwn)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionPwnNotSupported)]));
+
+        if (model.EnableAiDetection is true && !HasValidAiCallback(containerProvider.Value))
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionCallbackRequired)]));
 
         // prevent the same game from referencing the same pool challenge twice
         if (await challengeRepository.GetChallengeByPoolId(id, model.PoolChallengeId, token) is not null)
@@ -1572,7 +1581,7 @@ public class EditController(
             Difficulty = model.Difficulty ?? 5,
             DisableBloodBonus = model.DisableBloodBonus ?? false,
             EnableTrafficCapture = pool.Type.IsContainer() && (model.EnableTrafficCapture ?? false),
-            EnableAiDetection = pool.Type == ChallengeType.DynamicContainer &&
+            EnableAiDetection = pool.Type == ChallengeType.DynamicContainer && pool.Category != ChallengeCategory.Pwn &&
                                 (model.EnableAiDetection ?? false),
             IsEnabled = false // matches manually created challenges
         }, token);

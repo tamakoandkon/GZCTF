@@ -109,7 +109,10 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
           required
           placeholder="Search challenges"
           value={selected ? String(selected.id) : null}
-          onChange={(v) => setSelected(filtered.find((p) => String(p.id) === v) ?? null)}
+          onChange={(v) => {
+            setSelected(filtered.find((p) => String(p.id) === v) ?? null)
+            setEnableAiDetection(false)
+          }}
           data={filtered.map((p) => ({ value: String(p.id), label: `${p.title} (${p.rangeScore}pts)` }))}
           nothingFoundMessage={t('admin.content.nothing_found')}
         />
@@ -156,8 +159,14 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
             />
             {selected?.type === ChallengeType.DynamicContainer && (
               <Switch
+                disabled={selected.category === ChallengeCategory.Pwn}
                 checked={enableAiDetection}
                 label={t('admin.content.games.challenges.ai_detection.label')}
+                description={t(
+                  selected.category === ChallengeCategory.Pwn
+                    ? 'admin.content.games.challenges.ai_detection.pwn_unsupported'
+                    : 'admin.content.games.challenges.ai_detection.description'
+                )}
                 onChange={(e) => setEnableAiDetection(e.target.checked)}
               />
             )}

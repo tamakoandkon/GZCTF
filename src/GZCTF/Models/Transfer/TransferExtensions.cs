@@ -271,6 +271,7 @@ public static class TransferExtensions
                 DisableBloodBonus = transfer.Flags.DisableBloodBonus,
                 EnableTrafficCapture = transfer.Flags.EnableTrafficCapture,
                 EnableAiDetection = transfer.Type == ChallengeType.DynamicContainer &&
+                                    transfer.Category != ChallengeCategory.Pwn &&
                                     transfer.Flags.EnableAiDetection,
                 Hints = transfer.Hints
             };

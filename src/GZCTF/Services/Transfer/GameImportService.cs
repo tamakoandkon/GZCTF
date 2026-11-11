@@ -403,6 +403,7 @@ public class GameImportService(
             DisableBloodBonus = transferChallenge.Flags.DisableBloodBonus,
             EnableTrafficCapture = transferChallenge.Flags.EnableTrafficCapture,
             EnableAiDetection = transferChallenge.Type == ChallengeType.DynamicContainer &&
+                                transferChallenge.Category != ChallengeCategory.Pwn &&
                                 transferChallenge.Flags.EnableAiDetection,
 
             // Container settings

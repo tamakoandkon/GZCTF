@@ -99,7 +99,7 @@ public class GameChallenge : Challenge
 
         // Container only
         EnableTrafficCapture = Type.IsContainer() && (model.EnableTrafficCapture ?? EnableTrafficCapture);
-        EnableAiDetection = Type == ChallengeType.DynamicContainer &&
+        EnableAiDetection = Type == ChallengeType.DynamicContainer && Category != ChallengeCategory.Pwn &&
                             (model.EnableAiDetection ?? EnableAiDetection);
     }
 
