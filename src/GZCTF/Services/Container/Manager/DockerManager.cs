@@ -17,6 +17,7 @@ public class DockerManager : IContainerManager
 {
     private const int MaxCreateAttempts = 3;
     private const int MaxStartAttempts = 3;
+    private const int AiProbePort = 18080;
     private static readonly TimeSpan StartRetryDelay = TimeSpan.FromMilliseconds(500);
 
     private readonly DockerClient _client;
@@ -37,6 +38,32 @@ public class DockerManager : IContainerManager
 
     public async Task DestroyContainerAsync(Models.Data.Container container, CancellationToken token = default)
     {
+        if (container.AiDetectionToken.HasValue)
+        {
+            try
+            {
+                await _client.Containers.RemoveContainerAsync(GetAiProbeName(container.ContainerId),
+                    new() { Force = true }, token);
+            }
+            catch (DockerContainerNotFoundException)
+            {
+                // The proxy may already have been removed.
+            }
+            catch (DockerApiException e) when (e.StatusCode == HttpStatusCode.NotFound)
+            {
+                // The proxy may already have been removed.
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed to remove AI detection proxy for {ContainerId}", container.ContainerId);
+                return;
+            }
+        }
+
         try
         {
             await _client.Containers.RemoveContainerAsync(container.ContainerId,
@@ -82,11 +109,23 @@ public class DockerManager : IContainerManager
     public async Task<Models.Data.Container?> CreateContainerAsync(GZCTF.Models.Internal.ContainerConfig config,
         CancellationToken token = default)
     {
-        if (config.EnableAiDetection)
+        if (config.EnableAiDetection &&
+            (!Uri.TryCreate(_meta.AiDetectionCallbackUrl, UriKind.Absolute, out var callback) ||
+             (callback.Scheme != Uri.UriSchemeHttp && callback.Scheme != Uri.UriSchemeHttps)))
         {
-            _logger.LogWarning("AI detection is currently supported only by the Kubernetes container provider");
+            _logger.LogWarning("AI detection requires ContainerProvider:AiDetectionCallbackUrl");
             return null;
         }
+
+        if (config.EnableAiDetection && config.NetworkMode == NetworkMode.Isolated &&
+            !IPAddress.TryParse(new Uri(_meta.AiDetectionCallbackUrl).Host, out _))
+        {
+            _logger.LogWarning("Isolated AI-detected instances require an IP-based callback URL");
+            return null;
+        }
+
+        var probePort = config.ExposedPort == AiProbePort ? AiProbePort + 1 : AiProbePort;
+        var probeToken = config.EnableAiDetection ? Guid.NewGuid() : (Guid?)null;
         var imageName = config.Image.Split("/").LastOrDefault()?.Split(":").FirstOrDefault();
 
         if (string.IsNullOrWhiteSpace(imageName))
@@ -101,6 +140,9 @@ public class DockerManager : IContainerManager
         if (!await EnsureImageAsync(config.Image, token))
             return null;
 
+        if (config.EnableAiDetection && !await EnsureImageAsync(_meta.AiDetectionProxyImage, token))
+            return null;
+
         var parameters = GetCreateContainerParameters(config);
         var containerName = parameters.Name ?? DockerMetadata.GetName(config);
         parameters.Name = containerName;
@@ -108,7 +150,8 @@ public class DockerManager : IContainerManager
         if (_meta.ExposePort)
         {
             parameters.HostConfig ??= new();
-            parameters.ExposedPorts = new Dictionary<string, EmptyStruct> { [config.ExposedPort.ToString()] = new() };
+            var publishedPort = config.EnableAiDetection ? probePort : config.ExposedPort;
+            parameters.ExposedPorts = new Dictionary<string, EmptyStruct> { [publishedPort.ToString()] = new() };
             parameters.HostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>
             {
                 // let docker choose a random port, do not use "PublishAllPorts" option
@@ -117,7 +160,7 @@ public class DockerManager : IContainerManager
                 // comment:
                 //     If portStart and portEnd are 0 it returns
                 //     the first free port in the default ephemeral range.
-                [config.ExposedPort.ToString()] = [new PortBinding { HostPort = "0" }]
+                [publishedPort.ToString()] = [new PortBinding { HostPort = "0" }]
             };
         }
 
@@ -126,7 +169,12 @@ public class DockerManager : IContainerManager
         if (containerRes is null)
             return null;
 
-        var container = new Models.Data.Container { ContainerId = containerRes.ID, Image = config.Image };
+        var container = new Models.Data.Container
+        {
+            ContainerId = containerRes.ID,
+            Image = config.Image,
+            AiDetectionToken = probeToken
+        };
 
         if (!await StartContainerWithRetryAsync(container, imageName, token))
         {
@@ -174,10 +222,22 @@ public class DockerManager : IContainerManager
         container.Port = config.ExposedPort;
         container.IsProxy = !_meta.ExposePort;
 
+        if (config.EnableAiDetection)
+        {
+            if (string.IsNullOrEmpty(container.IP) ||
+                !await StartAiProbeAsync(container, config, probePort, probeToken!.Value, token))
+            {
+                await DestroyContainerAsync(container, token);
+                return null;
+            }
+
+            container.Port = probePort;
+        }
+
         if (!_meta.ExposePort)
             return container;
 
-        var bindings = GetPublishedPortBindings(networkSettings?.Ports, config.ExposedPort);
+        var bindings = GetPublishedPortBindings(networkSettings?.Ports, container.Port);
 
         if (bindings is [])
         {
@@ -205,6 +265,70 @@ public class DockerManager : IContainerManager
             container.PublicIP = _meta.PublicEntry;
 
         return container;
+    }
+
+    private static string GetAiProbeName(string containerId) => $"gzctf-ai-{containerId[..12]}";
+
+    private async Task<bool> StartAiProbeAsync(Models.Data.Container container, GZCTF.Models.Internal.ContainerConfig config,
+        int probePort, Guid probeToken, CancellationToken token)
+    {
+        var parameters = new CreateContainerParameters
+        {
+            Name = GetAiProbeName(container.ContainerId),
+            Image = _meta.AiDetectionProxyImage,
+            Entrypoint = ["node"],
+            Cmd = ["-e", AiProbeScript.Source],
+            Env =
+            [
+                $"AI_PROBE_PORT={probePort}",
+                $"AI_CHALLENGE_PORT={config.ExposedPort}",
+                $"AI_CALLBACK_URL={_meta.AiDetectionCallbackUrl}",
+                $"AI_PROBE_TOKEN={probeToken}"
+            ],
+            Labels = new Dictionary<string, string> { ["gzctf.ai-detection-for"] = container.ContainerId },
+            HostConfig = new HostConfig
+            {
+                NetworkMode = $"container:{container.ContainerId}",
+                Memory = 64L * 1024 * 1024,
+                CPUPercent = 10
+            }
+        };
+
+        var proxy = await CreateContainerWithRetryAsync(parameters, token);
+        if (proxy is null)
+            return false;
+
+        var proxyContainer = new Models.Data.Container
+        {
+            ContainerId = proxy.ID,
+            Image = _meta.AiDetectionProxyImage
+        };
+
+        if (!await StartContainerWithRetryAsync(proxyContainer, "ai-detection-proxy", token))
+            return false;
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            try
+            {
+                using var response = await http.GetAsync(
+                    $"http://{container.IP}:{probePort}/__gzctf_ai_probe_health", token);
+                if (response.StatusCode == HttpStatusCode.NoContent)
+                    return true;
+            }
+            catch (HttpRequestException)
+            {
+            }
+            catch (TaskCanceledException) when (!token.IsCancellationRequested)
+            {
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250), token);
+        }
+
+        _logger.LogWarning("AI detection proxy did not become healthy for {ContainerId}", container.ContainerId);
+        return false;
     }
 
     internal static IList<PortBinding> GetPublishedPortBindings(

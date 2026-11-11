@@ -8,6 +8,9 @@ namespace GZCTF.Services.Container.Provider;
 
 public class DockerMetadata : ContainerProviderMetadata
 {
+    public string AiDetectionCallbackUrl { get; set; } = string.Empty;
+    public string AiDetectionProxyImage { get; set; } = "node:24-alpine";
+
     /// <summary>
     /// Docker Configuration
     /// </summary>
@@ -54,7 +57,9 @@ public class DockerProvider : IContainerProvider<DockerClient, DockerMetadata>
                 Enum.GetValues<NetworkMode>()
                     .ToDictionary(n => n,
                         m => $"{networkPrefix}-{m.ToString().ToLowerInvariant()}"),
-            PublicEntry = options.Value.PublicEntry
+            PublicEntry = options.Value.PublicEntry,
+            AiDetectionCallbackUrl = options.Value.AiDetectionCallbackUrl,
+            AiDetectionProxyImage = options.Value.AiDetectionProxyImage
         };
         
         var builder = new DockerClientBuilder();

@@ -8,8 +8,9 @@ never see response headers.
 
 ## Requirements
 
-- Kubernetes container provider. The current Docker provider rejects instances
-  with AI detection enabled.
+- Kubernetes or Docker container provider. Docker runs the probe as a second
+  container sharing the challenge container's network namespace. The platform
+  needs access to the Docker daemon, and the probe image must be available to it.
 - Dynamic container challenge serving plaintext HTTP on its configured port.
   HTTPS inside the challenge container cannot be inspected by this proxy.
 - A reachable callback URL and an image containing Node.js 24. Set these under
@@ -22,17 +23,21 @@ never see response headers.
 }
 ```
 
-Use an address reachable from challenge Pods. The callback URL should resolve
-to the platform API, not to a challenge. For isolated challenge networks, use
-an IP address so GZCTF can create a narrow egress policy for the callback.
-That exception applies to the entire Pod, including the challenge container,
-not just the probe. Code running in an isolated challenge can therefore reach
-the callback IP and port. If the challenge must have strictly no egress, leave
-AI detection disabled until the reporter is moved to a separate network boundary.
-The proxy image must be available to every challenge node.
+Use an address reachable from challenge Pods or Docker containers. The callback
+URL should resolve to the platform API, not to a challenge. For isolated
+challenge networks, use an IP address. Kubernetes creates an egress policy for
+the callback address; this exception applies to the entire Pod. Docker's probe
+shares the challenge network namespace, so its callback needs an allowed route
+to the platform. A Docker isolated bridge with IP masquerading disabled may not
+reach the host's external address; bind a small reverse proxy on a bridge
+gateway address reachable from both open and isolated challenge networks. If
+the challenge must have strictly no egress, leave AI
+detection disabled until the reporter is moved to a separate network boundary.
+The proxy image must be available to every challenge node or Docker daemon.
 
-When an enabled instance starts, GZCTF adds a proxy container to its Pod and
-maps the public Service to the proxy port. The challenge port is not published.
+When an enabled instance starts, GZCTF adds a proxy container to its Pod or
+Docker network namespace and routes the public instance port to the proxy.
+The challenge port is not published directly.
 The proxy adds `X-LLM-Agent-Instruction` to normal HTTP responses and reports
 the first 20 distinct model identifiers it sees on that instance. The report
 token is unique to the instance and is never exposed in the public response.
