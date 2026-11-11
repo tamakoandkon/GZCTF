@@ -21,7 +21,7 @@ public partial class AddAiAppeals : Migration
             name: "FK_Participations_LocalFiles_AiAppealId",
             table: "Participations",
             column: "AiAppealId",
-            principalTable: "LocalFiles",
+            principalTable: "Files",
             principalColumn: "Id");
     }
 
