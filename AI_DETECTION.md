@@ -25,6 +25,10 @@ never see response headers.
 Use an address reachable from challenge Pods. The callback URL should resolve
 to the platform API, not to a challenge. For isolated challenge networks, use
 an IP address so GZCTF can create a narrow egress policy for the callback.
+That exception applies to the entire Pod, including the challenge container,
+not just the probe. Code running in an isolated challenge can therefore reach
+the callback IP and port. If the challenge must have strictly no egress, leave
+AI detection disabled until the reporter is moved to a separate network boundary.
 The proxy image must be available to every challenge node.
 
 When an enabled instance starts, GZCTF adds a proxy container to its Pod and
@@ -39,3 +43,23 @@ observation time. Since a team shares an instance, the signal cannot identify
 one specific team member. Existing instances retain their original access path;
 restart an instance after switching detection on or off. WebSocket upgrades
 are forwarded, but their handshake responses do not carry the instruction.
+
+## Uploads and HTTP errors
+
+The probe streams request bodies without setting a body-size limit. It preserves
+the challenge's status code and adds the instruction header to challenge error
+responses, including 413. Its own upstream-failure response (502) also carries
+the header. A 413 on an instance can still come from a reverse proxy in front
+of the instance or from the challenge image itself. If the image uses Nginx,
+configure `client_max_body_size` for that challenge's intended uploads; adding
+`X-Llm-Agent-Instruction` does not change Nginx's request-size limit. If an
+additional Nginx in front of the probe generates a 413 before the probe sees
+the request, add the instruction header there with `add_header ... always`.
+
+The GZCTF platform's upload endpoints are separate from challenge-instance
+traffic. Administrator asset uploads and game package imports accept a request
+body up to 513 MiB, allowing the game's 512 MiB ZIP limit plus multipart
+overhead. Appeal PDFs remain limited to 20 MiB. Platform logo and game poster
+images retain their existing 3 MiB application limit. Any outer Nginx or
+Ingress must allow at least the relevant endpoint limit, or it can return 413
+before GZCTF receives the upload.

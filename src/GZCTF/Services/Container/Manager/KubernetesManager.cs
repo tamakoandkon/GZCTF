@@ -184,9 +184,8 @@ public class KubernetesManager : IContainerManager
                 Ports = [new V1ContainerPort { ContainerPort = probePort }],
                 ReadinessProbe = new V1Probe
                 {
-                    HttpGet = new V1HTTPGetAction
+                    TcpSocket = new V1TCPSocketAction
                     {
-                        Path = "/__gzctf_ai_probe_health",
                         Port = probePort
                     },
                     InitialDelaySeconds = 1,

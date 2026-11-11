@@ -1078,6 +1078,7 @@ public class EditController(
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status500InternalServerError)]
+    [RequestSizeLimit(513L * 1024 * 1024)]
     [RequestFormLimits(ValueLengthLimit = int.MaxValue, MultipartBodyLengthLimit = long.MaxValue)]
     public async Task<IActionResult> ImportGame(IFormFile file, CancellationToken token = default)
     {

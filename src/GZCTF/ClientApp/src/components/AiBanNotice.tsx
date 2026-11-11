@@ -1,8 +1,10 @@
 import { Button, Center, FileInput, Modal, Select, Stack, Text, Title } from '@mantine/core'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation, useNavigate } from 'react-router'
 import useSWR from 'swr'
 import { useUser } from '@Hooks/useUser'
+import { Role } from '@Api'
 
 interface ActiveAiBan {
   gameId: number
@@ -14,6 +16,8 @@ export const AiBanNotice = () => {
   const { i18n } = useTranslation()
   const zh = i18n.language.startsWith('zh')
   const { user } = useUser()
+  const location = useLocation()
+  const navigate = useNavigate()
   const { data, mutate } = useSWR<ActiveAiBan[]>(
     user ? '/api/game/AiBans' : null,
     async (url: string) => {
@@ -21,13 +25,16 @@ export const AiBanNotice = () => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       return response.json()
     },
-    { refreshInterval: 5000, revalidateOnFocus: true }
+    { refreshInterval: 15000, revalidateOnFocus: true }
   )
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
   const [selectedGame, setSelectedGame] = useState<string | null>(null)
   const ban = data?.find((item) => String(item.gameId) === selectedGame) ?? data?.[0]
+  const canManage = user?.role === Role.Admin || user?.role === Role.Monitor
+  const onManagementPage = /^\/admin(?:\/|$)/.test(location.pathname) ||
+    /^\/games\/\d+\/monitor(?:\/|$)/.test(location.pathname)
 
   const submit = async () => {
     if (!ban || !file) return
@@ -53,7 +60,7 @@ export const AiBanNotice = () => {
   }
 
   return (
-    <Modal opened={!!ban} onClose={() => {}} fullScreen withCloseButton={false} closeOnEscape={false}
+    <Modal opened={!!ban && !(canManage && onManagementPage)} onClose={() => {}} fullScreen withCloseButton={false} closeOnEscape={false}
       closeOnClickOutside={false} zIndex={10000}>
       {ban && (
         <Center mih="85vh">
@@ -69,6 +76,9 @@ export const AiBanNotice = () => {
             <Button color="red" disabled={!file || file.size > 20 * 1024 * 1024} loading={uploading}
               onClick={submit}>{zh ? '提交申诉' : 'Submit appeal'}</Button>
             {ban.appealSubmittedAt && <Text c="dimmed">{zh ? '已收到申诉材料，可以重新提交' : 'Appeal received. You may replace it.'}</Text>}
+            {canManage && <Button variant="outline" onClick={() => navigate(`/games/${ban.gameId}/monitor/aidetection`)}>
+              {zh ? '前往比赛监控处理' : 'Open game monitor'}
+            </Button>}
             {message && <Text role="status">{message}</Text>}
           </Stack>
         </Center>

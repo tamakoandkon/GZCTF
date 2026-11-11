@@ -575,13 +575,13 @@ public class GameController(
 
         if (part.AiBanAt is null)
         {
-            await participationRepository.UpdateParticipationStatus(part, ParticipationStatus.Suspended, token);
             part.AiBanAt = DateTimeOffset.UtcNow;
             part.AiBanEventId = request.DetectionId;
-            await participationRepository.SaveAsync(token);
+            await participationRepository.UpdateParticipationStatus(part, ParticipationStatus.Suspended, token);
             await cacheHelper.FlushScoreboardCache(id, token);
         }
 
+        var allClosed = true;
         var containers = await dbContext.GameInstances.Include(i => i.Container)
             .Where(i => i.ParticipationId == participationId && i.ContainerId != null)
             .Select(i => i.Container)
@@ -589,9 +589,9 @@ public class GameController(
         foreach (var container in containers)
         {
             if (container is not null && !await containerRepository.DestroyContainer(container, token))
-                return StatusCode(StatusCodes.Status503ServiceUnavailable);
+                allClosed = false;
         }
-        return Ok();
+        return Ok(new { instancesClosed = allClosed });
     }
 
     [RequireMonitor]

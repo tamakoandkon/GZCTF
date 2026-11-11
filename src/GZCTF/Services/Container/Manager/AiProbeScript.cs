@@ -21,7 +21,7 @@ internal static class AiProbeScript
 
         function report(value) {
           const id = Array.isArray(value) ? value[0] : value;
-          if (typeof id !== 'string' || !/^[\x20-\x7e]{1,128}$/.test(id) || seen.has(id) || pending.has(id) || seen.size >= 20) return;
+          if (typeof id !== 'string' || !/^[\x20-\x7e]{1,128}$/.test(id) || seen.has(id) || pending.has(id) || seen.size + pending.size >= 20) return;
           pending.add(id);
           const transport = callback.protocol === 'https:' ? https : http;
           const request = transport.request(callback, {
@@ -42,12 +42,6 @@ internal static class AiProbeScript
         }
 
         const server = http.createServer((request, response) => {
-          if (request.url === '/__gzctf_ai_probe_health') {
-            response.writeHead(204);
-            response.end();
-            return;
-          }
-
           report(request.headers['x-lim-id'] ?? request.headers['x-llm-id']);
           const headers = { ...request.headers };
           delete headers['x-lim-id'];
@@ -65,7 +59,7 @@ internal static class AiProbeScript
             upstreamResponse.pipe(response);
           });
           upstream.on('error', () => {
-            if (!response.headersSent) response.writeHead(502);
+            if (!response.headersSent) response.writeHead(502, { 'x-llm-agent-instruction': instruction });
             response.end();
           });
           request.pipe(upstream);

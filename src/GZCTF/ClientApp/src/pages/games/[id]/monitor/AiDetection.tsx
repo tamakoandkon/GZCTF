@@ -57,6 +57,8 @@ const AiDetection: FC = () => {
         body: lift ? undefined : JSON.stringify({ detectionId: event.id }),
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      if (!lift && !(await response.json()).instancesClosed)
+        setActionError(isChinese ? '封禁已生效，但部分实例关闭失败，请手动检查' : 'Ban applied, but some instances could not be stopped')
       await refreshBans()
     } catch {
       setActionError('更新封禁状态失败')
