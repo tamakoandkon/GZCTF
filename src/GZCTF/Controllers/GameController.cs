@@ -367,6 +367,13 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
+        // A scoreboard cache can be generated before the game starts (e.g. when an
+        // admin edits or flushes the game), so the start time must be checked before
+        // serving the cached value, otherwise the challenge list, the score
+        // distribution and the participating teams are disclosed ahead of time.
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
+
         var scoreboard = await gameRepository.TryGetScoreboard(id, token);
         string eTag;
         if (scoreboard is not null)
@@ -377,9 +384,6 @@ public class GameController(
 
             return Ok(scoreboard);
         }
-
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
-            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         scoreboard = await gameRepository.GetScoreboard(game, token);
         var lastModified = scoreboard.UpdateTimeUtc;
