@@ -48,7 +48,7 @@ public class ParticipationInfoModel
             Id = part.Id,
             Status = part.Status,
             AiBanAt = part.AiBanAt,
-            AiAppealUrl = part.AiAppeal?.Url(),
+            AiAppealUrl = part.AiAppeal is null ? null : $"/api/game/{part.GameId}/AiAppeal/{part.Id}",
             AiAppealSubmittedAt = part.AiAppeal?.UploadTimeUtc,
             DivisionId = part.DivisionId,
             RegisteredMembers = part.Members.Select(m => m.UserId).ToArray(),

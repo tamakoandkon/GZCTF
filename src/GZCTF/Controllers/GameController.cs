@@ -659,6 +659,25 @@ public class GameController(
         return Ok();
     }
 
+    [RequireAdmin]
+    [HttpGet("{id:int}/AiAppeal/{participationId:int}")]
+    public async Task<IActionResult> GetAiAppeal(int id, int participationId, CancellationToken token)
+    {
+        var file = await dbContext.Participations.AsNoTracking()
+            .Where(p => p.Id == participationId && p.GameId == id)
+            .Select(p => p.AiAppeal)
+            .FirstOrDefaultAsync(token);
+        if (file is null)
+            return NotFound();
+
+        var path = StoragePath.Combine(PathHelper.Uploads, file.Location, file.Hash);
+        if (!await storage.ExistsAsync(path, token))
+            return NotFound();
+
+        Response.Headers.CacheControl = "private, no-store";
+        return File(await storage.OpenReadAsync(path, token), MediaTypeNames.Application.Pdf);
+    }
+
     /// <summary>
     /// Get challenges with traffic capturing enabled
     /// </summary>
