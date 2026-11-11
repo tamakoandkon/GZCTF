@@ -1,7 +1,7 @@
 namespace GZCTF.Services.Container.Manager;
 
 /// <summary>
-/// Dependency-free HTTP reverse proxy run in a separate container in the challenge Pod.
+/// Dependency-free HTTP reverse proxy run beside a Kubernetes or Docker challenge container.
 /// The challenge port is never published when this proxy is enabled.
 /// </summary>
 internal static class AiProbeScript
@@ -42,6 +42,12 @@ internal static class AiProbeScript
         }
 
         const server = http.createServer((request, response) => {
+          if (request.method === 'GET' && request.url === '/__gzctf_ai_probe_health') {
+            response.writeHead(204);
+            response.end();
+            return;
+          }
+
           report(request.headers['x-lim-id'] ?? request.headers['x-llm-id']);
           const headers = { ...request.headers };
           delete headers['x-lim-id'];
