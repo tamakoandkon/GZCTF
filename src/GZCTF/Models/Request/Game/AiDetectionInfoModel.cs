@@ -5,6 +5,7 @@ namespace GZCTF.Models.Request.Game;
 /// </summary>
 public class AiDetectionInfoModel
 {
+    public Guid Id { get; set; }
     public int ChallengeId { get; set; }
     public string ChallengeTitle { get; set; } = string.Empty;
     public int TeamId { get; set; }

@@ -36,11 +36,20 @@ public class ParticipationInfoModel
     [Required]
     public ParticipationStatus Status { get; set; } = ParticipationStatus.Pending;
 
+    public DateTimeOffset? AiBanAt { get; set; }
+
+    public string? AiAppealUrl { get; set; }
+
+    public DateTimeOffset? AiAppealSubmittedAt { get; set; }
+
     internal static ParticipationInfoModel FromParticipation(Participation part) =>
         new()
         {
             Id = part.Id,
             Status = part.Status,
+            AiBanAt = part.AiBanAt,
+            AiAppealUrl = part.AiAppeal?.Url(),
+            AiAppealSubmittedAt = part.AiAppeal?.UploadTimeUtc,
             DivisionId = part.DivisionId,
             RegisteredMembers = part.Members.Select(m => m.UserId).ToArray(),
             Team = TeamWithDetailedUserInfo.FromTeam(part.Team)

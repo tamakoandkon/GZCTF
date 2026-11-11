@@ -1,12 +1,13 @@
-import { Alert, Badge, Group, Paper, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Badge, Button, Group, Paper, Stack, Table, Text, Title } from '@mantine/core'
 import dayjs from 'dayjs'
-import { FC } from 'react'
+import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import useSWR from 'swr'
 import { WithGameMonitor } from '@Components/WithGameMonitor'
 
 interface AiDetectionInfo {
+  id: string
   challengeId: number
   challengeTitle: string
   teamId: number
@@ -29,6 +30,40 @@ const AiDetection: FC = () => {
     },
     { refreshInterval: 15000 }
   )
+  const { data: banned, mutate: refreshBans } = useSWR<number[]>(
+    id ? `/api/game/${id}/AiBans` : null,
+    async (url: string) => {
+      const response = await fetch(url, { credentials: 'same-origin' })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return response.json()
+    },
+    { refreshInterval: 15000 }
+  )
+  const [busy, setBusy] = useState<number | null>(null)
+  const [actionError, setActionError] = useState('')
+
+  const updateBan = async (event: AiDetectionInfo, lift: boolean) => {
+    const question = lift
+      ? `解除 ${event.teamName} 的 Agent 解题封禁？`
+      : `确认因使用 Agent 解题封禁 ${event.teamName}？这会暂停该队伍的参赛资格。`
+    if (!window.confirm(question)) return
+    setBusy(event.participationId)
+    setActionError('')
+    try {
+      const response = await fetch(`/api/game/${id}/AiBan/${event.participationId}`, {
+        method: lift ? 'DELETE' : 'POST',
+        credentials: 'same-origin',
+        headers: lift ? undefined : { 'Content-Type': 'application/json' },
+        body: lift ? undefined : JSON.stringify({ detectionId: event.id }),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      await refreshBans()
+    } catch {
+      setActionError('更新封禁状态失败')
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
     <WithGameMonitor isLoading={!data && !error}>
@@ -43,6 +78,7 @@ const AiDetection: FC = () => {
             : 'Model IDs come from instance request headers. They are review signals, not proof of a rule violation. Shared instances identify teams, not individual players.'}
         </Alert>
         {error && <Alert color="red">{isChinese ? '加载检测记录失败' : 'Could not load detection events'}</Alert>}
+        {actionError && <Alert color="red">{actionError}</Alert>}
         <Paper withBorder p="md">
           {!data?.length ? (
             <Text c="dimmed">{isChinese ? '暂无检测记录' : 'No detections yet'}</Text>
@@ -54,15 +90,23 @@ const AiDetection: FC = () => {
                   <Table.Th>{isChinese ? '队伍' : 'Team'}</Table.Th>
                   <Table.Th>{isChinese ? '题目' : 'Challenge'}</Table.Th>
                   <Table.Th>{isChinese ? '自报模型 / Agent' : 'Reported model / agent'}</Table.Th>
+                  <Table.Th>{isChinese ? '处置' : 'Action'}</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {data.map((event, index) => (
-                  <Table.Tr key={`${event.participationId}-${event.challengeId}-${event.modelId}-${index}`}>
+                  <Table.Tr key={`${event.id}-${index}`}>
                     <Table.Td>{dayjs(event.seenAt).format('YYYY-MM-DD HH:mm:ss')}</Table.Td>
                     <Table.Td>{event.teamName} (#{event.teamId})</Table.Td>
                     <Table.Td>{event.challengeTitle} (#{event.challengeId})</Table.Td>
                     <Table.Td><Text ff="monospace" size="sm">{event.modelId}</Text></Table.Td>
+                    <Table.Td>
+                      <Button size="xs" color={banned?.includes(event.participationId) ? 'gray' : 'red'}
+                        loading={busy === event.participationId}
+                        onClick={() => updateBan(event, banned?.includes(event.participationId) ?? false)}>
+                        {banned?.includes(event.participationId) ? '解除封禁' : '使用 Agent 解题封禁'}
+                      </Button>
+                    </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>

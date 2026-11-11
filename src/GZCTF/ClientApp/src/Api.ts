@@ -2549,6 +2549,9 @@ export interface ParticipationInfoModel {
   divisionId?: number | null;
   /** Participation status */
   status: ParticipationStatus;
+  aiBanAt?: string | null;
+  aiAppealUrl?: string | null;
+  aiAppealSubmittedAt?: string | null;
 }
 
 /** Detailed team information for review (Admin) */

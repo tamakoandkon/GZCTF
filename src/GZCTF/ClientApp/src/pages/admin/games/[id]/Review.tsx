@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { ParticipationDivisionEditModal } from '@Components/admin/ParticipationDivisionEditModal'
 import { ParticipationStatusControl } from '@Components/admin/ParticipationStatusControl'
+import { PDFViewer } from '@Components/admin/PDFViewer'
 import { WithGameEditTab } from '@Components/admin/WithGameEditTab'
 import { showErrorMsg } from '@Utils/Shared'
 import { useParticipationStatusMap } from '@Utils/Shared'
@@ -192,6 +193,16 @@ const ParticipationItem: FC<ParticipationItemProps> = (props) => {
       </Box>
       <Accordion.Panel>
         <Stack>
+          {participation.aiBanAt && (
+            <Text c="red" fw={600}>使用 Agent 解题封禁，申诉材料由该队伍成员提交</Text>
+          )}
+          {participation.aiAppealUrl && participation.aiAppealSubmittedAt &&
+            (!participation.aiBanAt || new Date(participation.aiAppealSubmittedAt) >= new Date(participation.aiBanAt)) && (
+              <Stack gap="xs">
+                <Text fw={600}>申诉材料（PDF）</Text>
+                <PDFViewer url={participation.aiAppealUrl} height={500} />
+              </Stack>
+            )}
           {participation.team?.members?.map((user) => (
             <MemberItem
               key={user.userId}

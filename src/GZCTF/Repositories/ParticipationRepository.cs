@@ -47,6 +47,7 @@ public class ParticipationRepository(
 
     public Task<Participation[]> GetParticipations(Game game, CancellationToken token = default) =>
         Context.Participations.Where(p => p.GameId == game.Id)
+            .Include(p => p.AiAppeal)
             .Include(p => p.Team)
             .ThenInclude(t => t.Members)
             .OrderBy(p => p.TeamId).ToArrayAsync(token);
@@ -103,6 +104,12 @@ public class ParticipationRepository(
             return;
 
         part.Status = status;
+
+        if (status != ParticipationStatus.Suspended)
+        {
+            part.AiBanAt = null;
+            part.AiBanEventId = null;
+        }
 
         switch (status)
         {

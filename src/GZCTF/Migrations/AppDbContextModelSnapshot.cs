@@ -843,6 +843,15 @@ namespace GZCTF.Migrations
 
             modelBuilder.Entity("GZCTF.Models.Data.Participation", b =>
                 {
+                    b.Property<int?>("AiAppealId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("AiBanAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AiBanEventId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
@@ -869,6 +878,8 @@ namespace GZCTF.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AiAppealId");
 
                     b.HasIndex("DivisionId");
 
@@ -1764,6 +1775,10 @@ namespace GZCTF.Migrations
 
             modelBuilder.Entity("GZCTF.Models.Data.Participation", b =>
                 {
+                    b.HasOne("GZCTF.Models.Data.LocalFile", "AiAppeal")
+                        .WithMany()
+                        .HasForeignKey("AiAppealId");
+
                     b.HasOne("GZCTF.Models.Data.Division", "Division")
                         .WithMany()
                         .HasForeignKey("DivisionId")
@@ -1784,6 +1799,8 @@ namespace GZCTF.Migrations
                     b.HasOne("GZCTF.Models.Data.LocalFile", "Writeup")
                         .WithMany()
                         .HasForeignKey("WriteupId");
+
+                    b.Navigation("AiAppeal");
 
                     b.Navigation("Division");
 

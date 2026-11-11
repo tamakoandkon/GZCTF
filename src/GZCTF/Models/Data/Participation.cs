@@ -33,6 +33,15 @@ public class Participation
     /// </summary>
     public LocalFile? Writeup { get; set; }
 
+    /// <summary>Active Agent-use ban. Null when the team may participate.</summary>
+    public DateTimeOffset? AiBanAt { get; set; }
+
+    /// <summary>Detection event reviewed when applying the ban.</summary>
+    public Guid? AiBanEventId { get; set; }
+
+    /// <summary>PDF appeal submitted by the banned team.</summary>
+    public LocalFile? AiAppeal { get; set; }
+
     #region Db Relationship
 
     /// <summary>
