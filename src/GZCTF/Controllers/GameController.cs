@@ -125,11 +125,15 @@ public class GameController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        var count = await participationRepository.GetParticipationCount(id, token);
-
         Participation? part = null;
         if (await userManager.GetUserAsync(User) is { } user)
             part = await participationRepository.GetParticipation(user.Id, id, token);
+
+        if (gameInfo.Hidden && part is null && !await ContextHelper.HasMonitor(HttpContext))
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        var count = await participationRepository.GetParticipationCount(id, token);
 
         return Ok(gameInfo.WithParticipation(part, count));
     }
@@ -148,7 +152,7 @@ public class GameController(
     {
         var game = await gameRepository.GetGameById(id, token);
 
-        if (game is null)
+        if (game is null || !await CanAccessHiddenGame(game, token))
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
@@ -179,7 +183,7 @@ public class GameController(
         await using var transaction = await gameRepository.BeginTransactionAsync(token);
         var game = await gameRepository.GetGameById(id, token);
 
-        if (game is null)
+        if (game is null || !await CanAccessHiddenGame(game, token))
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
@@ -357,6 +361,19 @@ public class GameController(
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Scoreboard([FromRoute] int id, CancellationToken token)
     {
+        var game = await gameRepository.GetGameById(id, token);
+
+        if (game is null || !await CanAccessHiddenGame(game, token))
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        // A scoreboard cache can be generated before the game starts (e.g. when an
+        // admin edits or flushes the game), so the start time must be checked before
+        // serving the cached value, otherwise the challenge list, the score
+        // distribution and the participating teams are disclosed ahead of time.
+        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
+
         var scoreboard = await gameRepository.TryGetScoreboard(id, token);
         string eTag;
         if (scoreboard is not null)
@@ -367,15 +384,6 @@ public class GameController(
 
             return Ok(scoreboard);
         }
-
-        var game = await gameRepository.GetGameById(id, token);
-
-        if (game is null)
-            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
-                StatusCodes.Status404NotFound));
-
-        if (DateTimeOffset.UtcNow < game.StartTimeUtc)
-            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
         scoreboard = await gameRepository.GetScoreboard(game, token);
         var lastModified = scoreboard.UpdateTimeUtc;
@@ -405,7 +413,7 @@ public class GameController(
     {
         var game = await gameRepository.GetGameById(id, token);
 
-        if (game is null)
+        if (game is null || !await CanAccessHiddenGame(game, token))
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
                 StatusCodes.Status404NotFound));
 
@@ -1444,6 +1452,16 @@ public class GameController(
             gate.Release();
         }
     }
+
+    /// <summary>
+    /// Hidden games are private to the administration and to users that already
+    /// take part in them. Everybody else gets the same 404 as for a missing game,
+    /// so hidden game ids cannot be probed.
+    /// </summary>
+    private async Task<bool> CanAccessHiddenGame(Game game, CancellationToken token) =>
+        !game.Hidden
+        || await ContextHelper.HasMonitor(HttpContext)
+        || await ContextHelper.HasParticipation(HttpContext, game.Id, token);
 
     private async Task<ContextInfo> GetContextInfo(int id, bool denyAfterEnded = true,
         CancellationToken token = default)
