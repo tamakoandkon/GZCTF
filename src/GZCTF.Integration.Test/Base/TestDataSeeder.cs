@@ -210,7 +210,7 @@ public static class TestDataSeeder
 
     public static async Task<SeededGame> CreateGameAsync(IServiceProvider services, string title,
         DateTimeOffset? start = null, DateTimeOffset? end = null, bool acceptWithoutReview = true,
-        bool practiceMode = false, CancellationToken token = default)
+        bool practiceMode = false, bool hidden = false, CancellationToken token = default)
     {
         using var scope = services.CreateScope();
         var gameRepository = scope.ServiceProvider.GetRequiredService<IGameRepository>();
@@ -221,7 +221,7 @@ public static class TestDataSeeder
             Title = title,
             Summary = "Test game summary",
             Content = "Test game content",
-            Hidden = false,
+            Hidden = hidden,
             PracticeMode = practiceMode,
             AcceptWithoutReview = acceptWithoutReview,
             WriteupRequired = false,
