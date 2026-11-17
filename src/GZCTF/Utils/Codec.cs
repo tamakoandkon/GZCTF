@@ -140,11 +140,14 @@ public static partial class Codec
             if (str is null)
                 return [];
 
-            Span<byte> buffer = stackalloc byte[str.Length * 3 / 4 + 8];
-
-            return Convert.TryFromBase64String(str, buffer, out var bytesWritten)
-                ? buffer[..bytesWritten].ToArray()
-                : [];
+            try
+            {
+                return Convert.FromBase64String(str);
+            }
+            catch (FormatException)
+            {
+                return [];
+            }
         }
     }
 }
