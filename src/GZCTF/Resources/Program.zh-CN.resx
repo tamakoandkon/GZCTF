@@ -1145,4 +1145,7 @@
   <data name="Model_PasskeyNameTooLong" xml:space="preserve">
     <value>通行密钥名称不能超过 {1} 个字符</value>
   </data>
+  <data name="Challenge_DuplicateDynamicAttachmentFlag" xml:space="preserve">
+    <value>同一道动态附件题或同一题池中的 Flag 必须唯一。</value>
+  </data>
 </root>

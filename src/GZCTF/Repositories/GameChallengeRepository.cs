@@ -12,6 +12,17 @@ public class GameChallengeRepository(
 {
     public async Task AddFlags(GameChallenge challenge, FlagCreateModel[] models, CancellationToken token = default)
     {
+        var dynamicAttachment = challenge.Type == ChallengeType.DynamicAttachment;
+        await using var transaction = dynamicAttachment && Context.Database.CurrentTransaction is null
+            ? await BeginTransactionAsync(token)
+            : null;
+
+        if (dynamicAttachment)
+        {
+            await DynamicAttachmentFlags.LockAsync(Context, challenge.Id, false, token);
+            await DynamicAttachmentFlags.RequireUniqueAsync(Context, challenge.Id, false, models, token);
+        }
+
         foreach (var model in models)
         {
             var attachment = model.ToAttachment(await blobRepository.GetBlobByHash(model.FileHash, token));
@@ -19,7 +30,9 @@ public class GameChallengeRepository(
             challenge.Flags.Add(new() { Flag = model.Flag, Challenge = challenge, Attachment = attachment });
         }
 
-        await SaveAsync(token);
+        await Context.SaveChangesAsync(token);
+        if (transaction is not null)
+            await transaction.CommitAsync(token);
     }
 
     public async Task<GameChallenge> CreateChallenge(Game game, GameChallenge challenge,

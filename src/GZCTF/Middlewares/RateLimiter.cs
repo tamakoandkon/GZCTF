@@ -55,8 +55,8 @@ public static class RateLimiter
         {
             var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            if (userId is not null)
-                return RateLimitPartition.GetSlidingWindowLimiter(userId,
+            if (context.User.Identity?.IsAuthenticated is true && userId is not null)
+                return RateLimitPartition.GetSlidingWindowLimiter(GetPartitionKey(context),
                     _ => new()
                     {
                         QueueLimit = 60,
@@ -71,7 +71,7 @@ public static class RateLimiter
             if (address is null || IPAddress.IsLoopback(address))
                 return RateLimitPartition.GetNoLimiter(IPAddress.Loopback.ToString());
 
-            return RateLimitPartition.GetSlidingWindowLimiter(address.ToString(),
+            return RateLimitPartition.GetSlidingWindowLimiter(GetPartitionKey(context),
                 _ => new()
                 {
                     QueueLimit = 60,
@@ -99,42 +99,61 @@ public static class RateLimiter
                     StatusCodes.Status429TooManyRequests
                 ), cancellationToken);
         };
-        options.AddConcurrencyLimiter(nameof(LimitPolicy.Concurrency), o =>
-        {
-            o.PermitLimit = 1;
-            o.QueueLimit = 20;
-        });
-        options.AddSlidingWindowLimiter(nameof(LimitPolicy.Register), o =>
-        {
-            o.QueueLimit = 10;
-            o.PermitLimit = 20;
-            o.Window = TimeSpan.FromSeconds(150);
-            o.QueueProcessingOrder = QueueProcessingOrder.NewestFirst;
-            o.SegmentsPerWindow = 5;
-        });
-        options.AddTokenBucketLimiter(nameof(LimitPolicy.Query), o =>
-        {
-            o.TokenLimit = 100;
-            o.TokensPerPeriod = 10;
-            o.ReplenishmentPeriod = TimeSpan.FromSeconds(10);
-        });
-        options.AddTokenBucketLimiter(nameof(LimitPolicy.PowChallenge), o =>
-        {
-            o.TokenLimit = 40;
-            o.TokensPerPeriod = 5;
-            o.ReplenishmentPeriod = TimeSpan.FromSeconds(30);
-        });
-        options.AddTokenBucketLimiter(nameof(LimitPolicy.Container), o =>
-        {
-            o.TokenLimit = 120;
-            o.TokensPerPeriod = 30;
-            o.ReplenishmentPeriod = TimeSpan.FromSeconds(10);
-        });
-        options.AddTokenBucketLimiter(nameof(LimitPolicy.Submit), o =>
-        {
-            o.TokenLimit = 100;
-            o.TokensPerPeriod = 50;
-            o.ReplenishmentPeriod = TimeSpan.FromSeconds(5);
-        });
+        options.AddPolicy(nameof(LimitPolicy.Concurrency), context =>
+            RateLimitPartition.GetConcurrencyLimiter(GetPartitionKey(context), _ => new()
+            {
+                PermitLimit = 1,
+                QueueLimit = 20
+            }));
+        options.AddPolicy(nameof(LimitPolicy.Register), context =>
+            RateLimitPartition.GetSlidingWindowLimiter(GetPartitionKey(context), _ => new()
+            {
+                QueueLimit = 10,
+                PermitLimit = 20,
+                Window = TimeSpan.FromSeconds(150),
+                QueueProcessingOrder = QueueProcessingOrder.NewestFirst,
+                SegmentsPerWindow = 5
+            }));
+        options.AddPolicy(nameof(LimitPolicy.Query), context =>
+            RateLimitPartition.GetTokenBucketLimiter(GetPartitionKey(context), _ => new()
+            {
+                TokenLimit = 100,
+                TokensPerPeriod = 10,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(10)
+            }));
+        options.AddPolicy(nameof(LimitPolicy.PowChallenge), context =>
+            RateLimitPartition.GetTokenBucketLimiter(GetPartitionKey(context), _ => new()
+            {
+                TokenLimit = 40,
+                TokensPerPeriod = 5,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(30)
+            }));
+        options.AddPolicy(nameof(LimitPolicy.Container), context =>
+            RateLimitPartition.GetTokenBucketLimiter(GetPartitionKey(context), _ => new()
+            {
+                TokenLimit = 120,
+                TokensPerPeriod = 30,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(10)
+            }));
+        options.AddPolicy(nameof(LimitPolicy.Submit), context =>
+            RateLimitPartition.GetTokenBucketLimiter(GetPartitionKey(context), _ => new()
+            {
+                TokenLimit = 100,
+                TokensPerPeriod = 50,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(5)
+            }));
+    }
+
+    private static string GetPartitionKey(HttpContext context)
+    {
+        if (context.User.Identity?.IsAuthenticated is true &&
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } userId)
+            return $"user:{userId}";
+
+        var address = context.Connection.RemoteIpAddress;
+        if (address?.IsIPv4MappedToIPv6 is true)
+            address = address.MapToIPv4();
+
+        return $"ip:{address}";
     }
 }
