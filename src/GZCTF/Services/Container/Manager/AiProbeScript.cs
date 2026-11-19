@@ -40,12 +40,15 @@ internal static class AiProbeScript
 
         // Family substring match, so real-world self-reports all hit: deepseek-chat,
         // deepseek-reasoner, DeepSeek-V4.1, kimi-k2, qwen3-coder, claude-code, codex-cli...
-        const knownModel = /gpt|chatgpt|openai|claude|anthropic|glm|deepseek|kimi|moonshot|gemini|qwen|codex|copilot|cursor|cline|windsurf|aider|trae|devin|droid|minimax|doubao|hunyuan/i;
+        // Short or generic tokens (o3, spark, yi-34b, step-3) are matched with boundaries
+        // so ordinary words never trigger a decoy.
+        const knownModel = /gpt|chatgpt|openai|claude|anthropic|glm|deepseek|kimi|moonshot|gemini|qwen|qwq|codex|copilot|cursor|cline|windsurf|aider|trae|devin|droid|minimax|abab|doubao|hunyuan|ernie|baichuan|llama|mistral|mixtral|grok|openhands|roo[-_. ]?code|kilo[-_. ]?code|augment|jules|cody|(?:^|[^a-z0-9])(?:o[134]|spark|goose|swe[-_. ]?agent|step[-_. ]?[0-9]|yi(?:[-_. ]?[0-9])?)/i;
 
         const realFlagBytes = Buffer.from(realFlag, 'utf8');
         const MAX_BUFFER = 2 * 1024 * 1024;
         const IDLE_FLUSH_MS = 250;
         const MARKED_LIMIT = 20;
+        const REPORT_LIMIT = 200;
         const HEX = '0123456789abcdef';
         const LOWER = 'abcdefghijklmnopqrstuvwxyz';
 
@@ -57,7 +60,7 @@ internal static class AiProbeScript
 
         function report(value) {
           const id = Array.isArray(value) ? value[0] : value;
-          if (typeof id !== 'string' || !/^[\x20-\x7e]{1,128}$/.test(id) || seen.has(id) || pending.has(id) || seen.size + pending.size >= 20) return;
+          if (typeof id !== 'string' || !/^[\x20-\x7e]{1,128}$/.test(id) || seen.has(id) || pending.has(id) || seen.size + pending.size >= REPORT_LIMIT) return;
           pending.add(id);
           const transport = callback.protocol === 'https:' ? https : http;
           const request = transport.request(callback, {

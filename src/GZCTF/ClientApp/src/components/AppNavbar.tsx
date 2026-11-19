@@ -26,6 +26,7 @@ import {
   mdiWeatherSunny,
   mdiWrenchOutline,
   mdiTransitConnectionVariant,
+  mdiMonitorEye,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import cx from 'clsx'
@@ -92,6 +93,7 @@ export const AppNavbar: FC<AppControlProps> = ({ openColorModal }) => {
     { icon: mdiFlagOutline, label: 'common.tab.game', link: '/games' },
     { icon: mdiSchoolOutline, label: 'common.tab.exercise', link: '/exercise' },
     { icon: mdiAccountGroupOutline, label: 'common.tab.team', link: '/teams' },
+    { icon: mdiMonitorEye, label: 'common.tab.viewer', link: '/viewer' },
     { icon: mdiInformationOutline, label: 'common.tab.about', link: '/about' },
     { icon: mdiWrenchOutline, label: 'common.tab.admin', link: '/admin/games', admin: true },
   ]

@@ -62,6 +62,13 @@
     "wider": {
       "text": "请使用更宽的设备浏览本页面",
       "title": "页面宽度不足"
+    },
+    "viewer": {
+      "failed": "无法进入观赛，请稍后重试。",
+      "go_team": "前往战队",
+      "redirecting": "正在进入观赛…",
+      "team_required": "请先加入战队后再进入观赛。",
+      "unavailable": "观赛系统暂时不可用，请稍后再试。"
     }
   },
   "download": {
@@ -132,7 +139,8 @@
       "dark": "深色",
       "light": "浅色",
       "switch_to": "切换到{{theme}}主题"
-    }
+    },
+    "viewer": "观赛"
   },
   "title": {
     "404": "The Nowhere",
