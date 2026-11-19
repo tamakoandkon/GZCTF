@@ -480,7 +480,29 @@ public class GameController(
         if (DateTimeOffset.UtcNow < game.StartTimeUtc)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
-        return Ok(await submissionRepository.GetSubmissions(game, type, count, skip, token));
+        var submissions = await submissionRepository.GetSubmissions(game, type, count, skip, token);
+
+        // Monitor-only annotation. Player-facing responses never carry this field, so a
+        // decoy submission keeps looking like an ordinary wrong answer to its sender.
+        var markedFlags = await dbContext.MarkedFlags.AsNoTracking()
+            .Where(f => f.GameId == id)
+            .Select(f => new { f.Flag, f.ModelId, f.IssuedAtUtc })
+            .ToArrayAsync(token);
+
+        if (markedFlags.Length > 0)
+        {
+            var map = markedFlags.ToDictionary(f => f.Flag);
+            foreach (var submission in submissions)
+            {
+                if (!map.TryGetValue(submission.Answer, out var marked))
+                    continue;
+
+                submission.MarkedFlagModel = marked.ModelId;
+                submission.MarkedFlagIssuedAtUtc = marked.IssuedAtUtc;
+            }
+        }
+
+        return Ok(submissions);
     }
 
     /// <summary>
@@ -530,7 +552,22 @@ public class GameController(
             .Where(e => e.GameId == id)
             .OrderByDescending(e => e.SeenAt)
             .Take(500)
-            .Select(e => new AiDetectionInfoModel
+            .ToArrayAsync(token);
+
+        var marked = await dbContext.MarkedFlags.AsNoTracking()
+            .Where(f => f.GameId == id)
+            .Select(f => new { f.ParticipationId, f.ChallengeId, f.IssuedAtUtc, f.SubmittedAtUtc })
+            .ToArrayAsync(token);
+
+        var markedState = marked
+            .GroupBy(f => (f.ParticipationId, f.ChallengeId))
+            .ToDictionary(g => g.Key,
+                g => (IssuedAt: g.Min(f => f.IssuedAtUtc), SubmittedAt: g.Max(f => f.SubmittedAtUtc)));
+
+        return Ok(events.Select(e =>
+        {
+            var hasMarked = markedState.TryGetValue((e.ParticipationId, e.ChallengeId), out var state);
+            return new AiDetectionInfoModel
             {
                 Id = e.Id,
                 ChallengeId = e.ChallengeId,
@@ -539,10 +576,13 @@ public class GameController(
                 TeamName = e.TeamName,
                 ParticipationId = e.ParticipationId,
                 ModelId = e.ModelId,
-                SeenAt = e.SeenAt
-            })
-            .ToArrayAsync(token);
-        return Ok(events);
+                SeenAt = e.SeenAt,
+                MarkedFlagIssued = hasMarked,
+                MarkedFlagIssuedAt = hasMarked ? state.IssuedAt : null,
+                MarkedFlagSubmitted = hasMarked && state.SubmittedAt is not null,
+                MarkedFlagSubmittedAt = hasMarked ? state.SubmittedAt : null
+            };
+        }));
     }
 
     public sealed record AiBanRequest(Guid DetectionId);

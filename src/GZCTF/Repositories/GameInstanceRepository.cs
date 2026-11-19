@@ -335,6 +335,28 @@ public class GameInstanceRepository(
 
             var content = challenge.EffectiveContent;
 
+            // A decoy flag exists only because a request on this instance reported an AI
+            // identifier. Record the hit, but keep the player-facing result a plain wrong
+            // answer so the mechanism stays invisible to whoever submits it.
+            var markedFlag = await Context.MarkedFlags
+                .FirstOrDefaultAsync(f => f.GameId == updateSub.GameId && f.Flag == submission.Answer, token);
+
+            if (markedFlag is not null)
+            {
+                updateSub.Status = AnswerResult.WrongAnswer;
+
+                if (markedFlag.SubmittedAtUtc is null)
+                {
+                    markedFlag.SubmittedAtUtc = DateTimeOffset.UtcNow;
+                    markedFlag.SubmissionId = updateSub.Id;
+                    markedFlag.SubmittedByUserId = updateSub.UserId;
+                }
+
+                await SaveAsync(token);
+                await transaction.CommitAsync(token);
+                return new(SubmissionType.Unaccepted, updateSub.Status);
+            }
+
             if (instance.FlagContext is null && content.Type.IsStatic())
             {
                 // linked challenges store static flags against the pool challenge

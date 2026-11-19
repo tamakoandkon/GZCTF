@@ -179,7 +179,17 @@ public class KubernetesManager : IContainerManager
                     new V1EnvVar { Name = "AI_PROBE_PORT", Value = probePort.ToString() },
                     new V1EnvVar { Name = "AI_CHALLENGE_PORT", Value = config.ExposedPort.ToString() },
                     new V1EnvVar { Name = "AI_CALLBACK_URL", Value = _meta.AiDetectionCallbackUrl },
-                    new V1EnvVar { Name = "AI_PROBE_TOKEN", Value = probeToken!.Value.ToString() }
+                    new V1EnvVar { Name = "AI_PROBE_TOKEN", Value = probeToken!.Value.ToString() },
+                    new V1EnvVar
+                    {
+                        Name = "AI_MARK_ENABLED", Value = string.IsNullOrEmpty(config.Flag) ? "0" : "1"
+                    },
+                    new V1EnvVar { Name = "AI_MARK_FLAG", Value = config.Flag ?? string.Empty },
+                    new V1EnvVar
+                    {
+                        Name = "AI_MARK_CALLBACK_URL",
+                        Value = AiProbeScript.MarkedFlagCallback(_meta.AiDetectionCallbackUrl!)
+                    }
                 ],
                 Ports = [new V1ContainerPort { ContainerPort = probePort }],
                 ReadinessProbe = new V1Probe
@@ -195,11 +205,11 @@ public class KubernetesManager : IContainerManager
                 {
                     Limits = new Dictionary<string, ResourceQuantity>
                     {
-                        ["cpu"] = new("100m"), ["memory"] = new("64Mi")
+                        ["cpu"] = new("100m"), ["memory"] = new("256Mi")
                     },
                     Requests = new Dictionary<string, ResourceQuantity>
                     {
-                        ["cpu"] = new("10m"), ["memory"] = new("32Mi")
+                        ["cpu"] = new("10m"), ["memory"] = new("64Mi")
                     }
                 }
             });

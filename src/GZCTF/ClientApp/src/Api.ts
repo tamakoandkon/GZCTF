@@ -2410,6 +2410,16 @@ export interface Submission {
   team?: string;
   /** Challenge that was submitted */
   challenge?: string;
+  /**
+   * Monitor only: AI identifier that caused this decoy flag to be issued
+   * @nullable
+   */
+  markedFlagModel?: string | null;
+  /**
+   * Monitor only: when the decoy flag was issued
+   * @nullable
+   */
+  markedFlagIssuedAt?: string | null;
 }
 
 /** Cheat behavior information */

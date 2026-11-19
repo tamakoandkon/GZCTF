@@ -15,6 +15,10 @@ interface AiDetectionInfo {
   participationId: number
   modelId: string
   seenAt: string
+  markedFlagIssued?: boolean
+  markedFlagSubmitted?: boolean
+  markedFlagIssuedAt?: string | null
+  markedFlagSubmittedAt?: string | null
 }
 
 const AiDetection: FC = () => {
@@ -76,8 +80,8 @@ const AiDetection: FC = () => {
         </Group>
         <Alert color="orange">
           {isChinese
-            ? '模型标识来自实例请求头，属于疑似 AI 使用线索，不能单独作为违规证据。共享实例只能定位到队伍。'
-            : 'Model IDs come from instance request headers. They are review signals, not proof of a rule violation. Shared instances identify teams, not individual players.'}
+            ? '模型标识来自实例请求头，属于疑似 AI 使用线索，不能单独作为违规证据。共享实例只能定位到队伍。「已提交」表示队伍提交的值正是带模型头那次响应下发的标记 flag，证据更强，但仍需人工复核。'
+            : 'Model IDs come from instance request headers. They are review signals, not proof of a rule violation. Shared instances identify teams, not individual players. "Submitted" means the team submitted the exact decoy value handed to a request that reported a model, which is stronger evidence but still needs review.'}
         </Alert>
         {error && <Alert color="red">{isChinese ? '加载检测记录失败' : 'Could not load detection events'}</Alert>}
         {actionError && <Alert color="red">{actionError}</Alert>}
@@ -92,6 +96,7 @@ const AiDetection: FC = () => {
                   <Table.Th>{isChinese ? '队伍' : 'Team'}</Table.Th>
                   <Table.Th>{isChinese ? '题目' : 'Challenge'}</Table.Th>
                   <Table.Th>{isChinese ? '自报模型 / Agent' : 'Reported model / agent'}</Table.Th>
+                  <Table.Th>{isChinese ? '标记 flag' : 'Marked flag'}</Table.Th>
                   <Table.Th>{isChinese ? '处置' : 'Action'}</Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -102,6 +107,21 @@ const AiDetection: FC = () => {
                     <Table.Td>{event.teamName} (#{event.teamId})</Table.Td>
                     <Table.Td>{event.challengeTitle} (#{event.challengeId})</Table.Td>
                     <Table.Td><Text ff="monospace" size="sm">{event.modelId}</Text></Table.Td>
+                    <Table.Td>
+                      {event.markedFlagSubmitted ? (
+                        <Badge color="red" variant="filled">
+                          {isChinese ? '已提交' : 'submitted'}
+                        </Badge>
+                      ) : event.markedFlagIssued ? (
+                        <Badge color="orange" variant="light">
+                          {isChinese ? '已下发' : 'issued'}
+                        </Badge>
+                      ) : (
+                        <Text c="dimmed" size="sm">
+                          —
+                        </Text>
+                      )}
+                    </Table.Td>
                     <Table.Td>
                       <Button size="xs" color={banned?.includes(event.participationId) ? 'gray' : 'red'}
                         loading={busy === event.participationId}

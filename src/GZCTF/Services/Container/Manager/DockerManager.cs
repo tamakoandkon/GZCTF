@@ -283,13 +283,16 @@ public class DockerManager : IContainerManager
                 $"AI_PROBE_PORT={probePort}",
                 $"AI_CHALLENGE_PORT={config.ExposedPort}",
                 $"AI_CALLBACK_URL={_meta.AiDetectionCallbackUrl}",
-                $"AI_PROBE_TOKEN={probeToken}"
+                $"AI_PROBE_TOKEN={probeToken}",
+                $"AI_MARK_ENABLED={(string.IsNullOrEmpty(config.Flag) ? "0" : "1")}",
+                $"AI_MARK_FLAG={config.Flag}",
+                $"AI_MARK_CALLBACK_URL={AiProbeScript.MarkedFlagCallback(_meta.AiDetectionCallbackUrl!)}"
             ],
             Labels = new Dictionary<string, string> { ["gzctf.ai-detection-for"] = container.ContainerId },
             HostConfig = new HostConfig
             {
                 NetworkMode = $"container:{container.ContainerId}",
-                Memory = 64L * 1024 * 1024,
+                Memory = 256L * 1024 * 1024,
                 CPUPercent = 10
             }
         };

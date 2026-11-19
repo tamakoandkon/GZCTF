@@ -71,3 +71,42 @@ overhead. Appeal PDFs remain limited to 20 MiB. Platform logo and game poster
 images retain their existing 3 MiB application limit. Any outer Nginx or
 Ingress must allow at least the relevant endpoint limit, or it can return 413
 before GZCTF receives the upload.
+
+## Decoy flags
+
+A request that reports an identifier can also be handed a **decoy flag**. When
+that request's response is about to carry the instance's real flag, the proxy
+replaces the value in that one response with a random string of the same length
+and character classes, then reports the pair to the platform. The challenge
+container keeps the real flag: the file on disk is never modified, a request
+without the header still receives the real value, and a teammate who never sends
+the header is unaffected.
+
+Only responses that can be rewritten safely are touched:
+
+- `text/*`, JSON, JavaScript or XML, without `content-encoding`;
+- `204`, `206`, `304` and `HEAD` are skipped;
+- `text/event-stream` is never buffered;
+- a declared length above 2 MiB, or a body that stops sending for 250 ms, falls
+  back to plain streaming and is forwarded unchanged.
+
+`Content-Length` is preserved because the replacement has the same byte length,
+so clients and chunked encodings see no difference. Challenge uploads are not
+affected: request bodies are still piped without buffering or size limits.
+
+The platform stores team, challenge, reported identifier, issue time and the
+value itself. Submitting that exact value is shown in **Monitor → Submissions**
+as a `MF` badge, and **Monitor → Possible AI Use** marks the row as submitted.
+The submitter still receives an ordinary wrong-answer result; no new status is
+exposed to players or to the realtime feed.
+
+Limits worth keeping in mind:
+
+- the flag has to appear in an HTTP text body; Pwn/TCP services, static flags and
+  flags embedded in images or archives cannot be replaced;
+- an identifier header can be typed by a person, and a decoy value can be copied
+  by hand, so a hit is evidence to review, not a verdict;
+- decoys issued before a restart keep their rows, but an instance only receives
+  them after it is recreated with detection enabled;
+- the proxy sidecar now needs 256 MiB of memory because it may buffer a response
+  body.
