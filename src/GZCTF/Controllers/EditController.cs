@@ -6,6 +6,7 @@ using GZCTF.Models.Internal;
 using GZCTF.Models.Request.Edit;
 using GZCTF.Models.Request.Game;
 using GZCTF.Models.Request.Info;
+using GZCTF.Repositories;
 using GZCTF.Repositories.Interface;
 using GZCTF.Services.Cache;
 using GZCTF.Services.Container.Manager;
@@ -971,7 +972,16 @@ public class EditController(
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Challenge_ContentManagedInPool)]));
 
-        await challengeRepository.AddFlags(challenge, models, token);
+        try
+        {
+            await challengeRepository.AddFlags(challenge, models, token);
+        }
+        catch (DuplicateDynamicAttachmentFlagException)
+        {
+            return Conflict(new RequestResponse(
+                localizer[nameof(Resources.Program.Challenge_DuplicateDynamicAttachmentFlag)],
+                StatusCodes.Status409Conflict));
+        }
 
         return Ok();
     }
@@ -1365,7 +1375,16 @@ public class EditController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
 
-        await poolChallengeRepository.AddFlags(challenge, models, token);
+        try
+        {
+            await poolChallengeRepository.AddFlags(challenge, models, token);
+        }
+        catch (DuplicateDynamicAttachmentFlagException)
+        {
+            return Conflict(new RequestResponse(
+                localizer[nameof(Resources.Program.Challenge_DuplicateDynamicAttachmentFlag)],
+                StatusCodes.Status409Conflict));
+        }
 
         await cacheHelper.FlushExerciseScoreboardCache(token);
 

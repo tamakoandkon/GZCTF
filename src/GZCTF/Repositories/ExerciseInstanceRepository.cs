@@ -24,25 +24,23 @@ public class ExerciseInstanceRepository(
     {
         await using var transaction = await Context.Database.BeginTransactionAsync(token);
 
-        var instance = await Context.ExerciseInstances
-            .Include(i => i.FlagContext)
-            .Where(e => e.ExerciseId == exerciseId && e.UserId == user.Id)
-            .SingleOrDefaultAsync(token);
-
-        if (instance is not null && instance.IsLoaded)
-        {
-            await transaction.CommitAsync(token);
-            return instance;
-        }
-
-        // the challenge must be enabled in the range for the user to access it
         var challenge = await Context.PoolChallenges
             .FirstOrDefaultAsync(c => c.Id == exerciseId, token);
 
         if (challenge is null || !challenge.IsEnabled || !challenge.RangeEnabled)
+            return null;
+
+        if (challenge.Type == ChallengeType.DynamicAttachment)
+            await DynamicAttachmentFlags.LockAsync(Context, exerciseId, true, token);
+
+        var instance = await Context.ExerciseInstances
+            .Include(i => i.FlagContext)
+            .SingleOrDefaultAsync(i => i.ExerciseId == exerciseId && i.UserId == user.Id, token);
+
+        if (instance is { IsLoaded: true })
         {
             await transaction.CommitAsync(token);
-            return null;
+            return instance;
         }
 
         var isNewInstance = instance is null;
@@ -71,12 +69,9 @@ public class ExerciseInstanceRepository(
             }
             else if (challenge.Type == ChallengeType.DynamicAttachment)
             {
-                // Atomically claim one free flag (conditional UPDATE + retry). The old
-                // list-then-mark flow let concurrent dispatchers bind the same flag row,
-                // handing an identical dynamic flag to two users/teams.
-                var claimedFlagId = await ClaimFreeExerciseFlagAsync(exerciseId, token);
+                var flag = await DynamicAttachmentFlags.ClaimAsync(Context, exerciseId, true, token);
 
-                if (claimedFlagId is null)
+                if (flag is null)
                 {
                     logger.SystemLog(
                         localizer[nameof(Resources.Program.InstanceRepository_DynamicFlagsNotEnough),
@@ -86,14 +81,14 @@ public class ExerciseInstanceRepository(
                     return null;
                 }
 
-                instance.FlagId = claimedFlagId.Value;
+                instance.FlagContext = flag;
             }
 
             // instance.FlagContext is null by default
             // static flag does not need to be dispatched
 
             instance.IsLoaded = true;
-            await SaveAsync(token);
+            await Context.SaveChangesAsync(token);
             await transaction.CommitAsync(token);
         }
         catch
@@ -107,35 +102,6 @@ public class ExerciseInstanceRepository(
         }
 
         return instance;
-    }
-
-    /// <summary>
-    /// Atomically claim one unoccupied dynamic-attachment flag of the pool challenge.
-    /// Conditional UPDATE makes concurrent dispatchers retry instead of double-issuing.
-    /// </summary>
-    private async Task<int?> ClaimFreeExerciseFlagAsync(int poolChallengeId,
-        CancellationToken token = default)
-    {
-        const int maxClaimAttempts = 5;
-
-        for (var attempt = 0; attempt < maxClaimAttempts; attempt++)
-        {
-            var candidateId = await Context.FlagContexts.AsNoTracking()
-                .Where(e => e.PoolChallengeId == poolChallengeId && !e.IsOccupied)
-                .OrderBy(e => e.Id).Select(e => (int?)e.Id).FirstOrDefaultAsync(token);
-
-            if (candidateId is null)
-                return null;
-
-            var affected = await Context.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE \"FlagContexts\" SET \"IsOccupied\" = true WHERE \"Id\" = {candidateId.Value} AND NOT \"IsOccupied\"",
-                token);
-
-            if (affected > 0)
-                return candidateId.Value;
-        }
-
-        return null;
     }
 
     public async Task<TaskResult<Container>> CreateContainer(ExerciseInstance instance, UserInfo user,
@@ -225,12 +191,12 @@ public class ExerciseInstanceRepository(
     public async Task<AnswerResult> VerifyAnswer(UserInfo user, ExerciseInstance instance, string answer,
         CancellationToken token = default)
     {
-        if (instance.Exercise.Type == ChallengeType.DynamicContainer)
+        if (instance.Exercise.Type is ChallengeType.DynamicContainer or ChallengeType.DynamicAttachment)
         {
             if (instance.FlagContext is null)
                 return AnswerResult.NotFound;
 
-            if (instance.FlagContext.Flag != answer)
+            if (!string.Equals(instance.FlagContext.Flag, answer, StringComparison.Ordinal))
                 return AnswerResult.WrongAnswer;
 
             await MarkSolved(instance, token);

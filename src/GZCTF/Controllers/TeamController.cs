@@ -580,6 +580,7 @@ public partial class TeamController(
     /// <response code="400">Input format error</response>
     /// <response code="401">Signature invalid</response>
     [HttpPost("Verify")]
+    [RequestSizeLimit(4096)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status401Unauthorized)]
@@ -588,9 +589,8 @@ public partial class TeamController(
         // Token: <id>:<signature>
         // Data: $"GZCTF_TEAM_{team.Id}"
 
-        var pk = Codec.Base64.DecodeToBytes(model.PublicKey);
-
-        if (pk.Length != 32)
+        Span<byte> pk = stackalloc byte[32];
+        if (!Convert.TryFromBase64String(model.PublicKey, pk, out var keyLength) || keyLength != pk.Length)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Signature_Invalid)]));
 
         var pos = model.TeamToken.IndexOf(':');
@@ -601,10 +601,13 @@ public partial class TeamController(
         var id = model.TeamToken[..pos];
         var sign = model.TeamToken[(pos + 1)..];
 
-        if (!int.TryParse(id, out _) || string.IsNullOrEmpty(sign))
+        Span<byte> signature = stackalloc byte[64];
+        if (!int.TryParse(id, out _)
+            || !Convert.TryFromBase64String(sign, signature, out var signatureLength)
+            || signatureLength != signature.Length)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Signature_Invalid)]));
 
-        Ed25519PublicKeyParameters publicKey = new(pk, 0);
+        Ed25519PublicKeyParameters publicKey = new(pk.ToArray(), 0);
 
         if (CryptoUtils.VerifySignature($"GZCTF_TEAM_{id}", sign, publicKey, SignAlgorithm.Ed25519))
             return Ok();

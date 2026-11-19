@@ -82,6 +82,17 @@ public class PoolChallengeRepository(AppDbContext context, IBlobRepository blobR
 
     public async Task AddFlags(PoolChallenge challenge, FlagCreateModel[] models, CancellationToken token = default)
     {
+        var dynamicAttachment = challenge.Type == ChallengeType.DynamicAttachment;
+        await using var transaction = dynamicAttachment && Context.Database.CurrentTransaction is null
+            ? await BeginTransactionAsync(token)
+            : null;
+
+        if (dynamicAttachment)
+        {
+            await DynamicAttachmentFlags.LockAsync(Context, challenge.Id, true, token);
+            await DynamicAttachmentFlags.RequireUniqueAsync(Context, challenge.Id, true, models, token);
+        }
+
         foreach (var model in models)
         {
             var attachment = model.ToAttachment(await blobRepository.GetBlobByHash(model.FileHash, token));
@@ -89,7 +100,9 @@ public class PoolChallengeRepository(AppDbContext context, IBlobRepository blobR
             challenge.Flags.Add(new() { Flag = model.Flag, PoolChallenge = challenge, Attachment = attachment });
         }
 
-        await SaveAsync(token);
+        await Context.SaveChangesAsync(token);
+        if (transaction is not null)
+            await transaction.CommitAsync(token);
     }
 
     public async Task<TaskStatus> RemoveFlag(PoolChallenge challenge, int flagId, CancellationToken token = default)

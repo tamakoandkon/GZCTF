@@ -1151,4 +1151,7 @@
   <data name="Model_PasskeyNameTooLong" xml:space="preserve">
     <value>Passkey name cannot exceed {1} characters</value>
   </data>
+  <data name="Challenge_DuplicateDynamicAttachmentFlag" xml:space="preserve">
+    <value>Dynamic attachment Flags must be unique within the challenge or pool.</value>
+  </data>
 </root>
