@@ -564,17 +564,25 @@ public class GameController(
 
         var marked = await dbContext.MarkedFlags.AsNoTracking()
             .Where(f => f.GameId == id)
-            .Select(f => new { f.ParticipationId, f.ChallengeId, f.IssuedAtUtc, f.SubmittedAtUtc })
+            .OrderByDescending(f => f.IssuedAtUtc)
+            .Take(2000)
+            .Select(f => new
+            {
+                f.ParticipationId, f.ChallengeId, f.ModelId, f.Flag, f.IssuedAtUtc, f.SubmittedAtUtc
+            })
             .ToArrayAsync(token);
-
-        var markedState = marked
-            .GroupBy(f => (f.ParticipationId, f.ChallengeId))
-            .ToDictionary(g => g.Key,
-                g => (IssuedAt: g.Min(f => f.IssuedAtUtc), SubmittedAt: g.Max(f => f.SubmittedAtUtc)));
 
         return Ok(events.Select(e =>
         {
-            var hasMarked = markedState.TryGetValue((e.ParticipationId, e.ChallengeId), out var state);
+            // Pair the event with the decoy issued closest in time for the same model,
+            // so "issued" is not shown for events that never received one.
+            var candidate = marked
+                .Where(f => f.ParticipationId == e.ParticipationId &&
+                            f.ChallengeId == e.ChallengeId &&
+                            string.Equals(f.ModelId, e.ModelId, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => Math.Abs((f.IssuedAtUtc - e.SeenAt).TotalSeconds))
+                .FirstOrDefault();
+
             return new AiDetectionInfoModel
             {
                 Id = e.Id,
@@ -585,10 +593,75 @@ public class GameController(
                 ParticipationId = e.ParticipationId,
                 ModelId = e.ModelId,
                 SeenAt = e.SeenAt,
-                MarkedFlagIssued = hasMarked,
-                MarkedFlagIssuedAt = hasMarked ? state.IssuedAt : null,
-                MarkedFlagSubmitted = hasMarked && state.SubmittedAt is not null,
-                MarkedFlagSubmittedAt = hasMarked ? state.SubmittedAt : null
+                MarkedFlagIssued = candidate is not null,
+                MarkedFlagIssuedAt = candidate?.IssuedAtUtc,
+                MarkedFlagSubmitted = candidate?.SubmittedAtUtc is not null,
+                MarkedFlagSubmittedAt = candidate?.SubmittedAtUtc,
+                MarkedFlagValue = candidate?.Flag
+            };
+        }));
+    }
+
+    /// <summary>
+    /// Ledger of decoy flags issued on this game's instances.
+    /// Each row carries the exact issued value and the submitted answer, so the
+    /// match can be verified by eye.
+    /// </summary>
+    /// <remarks>
+    /// Listing the decoy ledger requires monitor privileges
+    /// </remarks>
+    /// <param name="id">Game ID</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully retrieved the decoy ledger</response>
+    /// <response code="404">Game not found</response>
+    [RequireMonitor]
+    [HttpGet("{id:int}/AiMarkedFlags")]
+    [ProducesResponseType(typeof(AiMarkedFlagInfoModel[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AiMarkedFlags([FromRoute] int id, CancellationToken token = default)
+    {
+        var game = await gameRepository.GetGameById(id, token);
+        if (game is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        var rows = await dbContext.MarkedFlags.AsNoTracking()
+            .Where(f => f.GameId == id)
+            .OrderByDescending(f => f.IssuedAtUtc)
+            .Take(500)
+            .ToArrayAsync(token);
+
+        var submissionIds = rows.Where(r => r.SubmissionId is not null)
+            .Select(r => r.SubmissionId!.Value)
+            .Distinct()
+            .ToArray();
+
+        Dictionary<int, (string Answer, DateTimeOffset Time)> submissions = [];
+        if (submissionIds.Length > 0)
+            submissions = (await dbContext.Submissions.AsNoTracking()
+                    .Where(s => submissionIds.Contains(s.Id))
+                    .Select(s => new { s.Id, s.Answer, s.Time })
+                    .ToArrayAsync(token))
+                .ToDictionary(s => s.Id, s => (s.Answer, s.Time));
+
+        return Ok(rows.Select(r =>
+        {
+            var hit = r.SubmissionId is not null && submissions.TryGetValue(r.SubmissionId.Value, out var sub);
+            return new AiMarkedFlagInfoModel
+            {
+                Id = r.Id,
+                ChallengeId = r.ChallengeId,
+                ChallengeTitle = r.ChallengeTitle,
+                TeamId = r.TeamId,
+                TeamName = r.TeamName,
+                ParticipationId = r.ParticipationId,
+                ModelId = r.ModelId,
+                Flag = r.Flag,
+                IssuedAtUtc = r.IssuedAtUtc,
+                SubmittedAtUtc = r.SubmittedAtUtc,
+                SubmissionId = r.SubmissionId,
+                SubmittedAnswer = hit ? sub.Answer : null,
+                SubmissionTime = hit ? sub.Time : (DateTimeOffset?)null,
+                SubmittedByUserId = r.SubmittedByUserId
             };
         }));
     }

@@ -33,4 +33,10 @@ public class AiDetectionInfoModel
     /// When the decoy value was submitted, if it was
     /// </summary>
     public DateTimeOffset? MarkedFlagSubmittedAt { get; set; }
+
+    /// <summary>
+    /// The decoy value handed out for this event, so it can be compared with the
+    /// submitted answer without leaving the page
+    /// </summary>
+    public string? MarkedFlagValue { get; set; }
 }

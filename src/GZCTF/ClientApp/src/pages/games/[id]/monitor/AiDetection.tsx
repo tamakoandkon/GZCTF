@@ -19,6 +19,23 @@ interface AiDetectionInfo {
   markedFlagSubmitted?: boolean
   markedFlagIssuedAt?: string | null
   markedFlagSubmittedAt?: string | null
+  markedFlagValue?: string | null
+}
+
+interface AiMarkedFlagInfo {
+  id: string
+  challengeId: number
+  challengeTitle: string
+  teamId: number
+  teamName: string
+  participationId: number
+  modelId: string
+  flag: string
+  issuedAtUtc: string
+  submittedAtUtc?: string | null
+  submissionId?: number | null
+  submittedAnswer?: string | null
+  submissionTime?: string | null
 }
 
 const AiDetection: FC = () => {
@@ -36,6 +53,15 @@ const AiDetection: FC = () => {
   )
   const { data: banned, mutate: refreshBans } = useSWR<number[]>(
     id ? `/api/game/${id}/AiBans` : null,
+    async (url: string) => {
+      const response = await fetch(url, { credentials: 'same-origin' })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return response.json()
+    },
+    { refreshInterval: 15000 }
+  )
+  const { data: ledger } = useSWR<AiMarkedFlagInfo[]>(
+    id ? `/api/game/${id}/AiMarkedFlags` : null,
     async (url: string) => {
       const response = await fetch(url, { credentials: 'same-origin' })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -80,8 +106,8 @@ const AiDetection: FC = () => {
         </Group>
         <Alert color="orange">
           {isChinese
-            ? '模型标识来自实例请求头，属于疑似 AI 使用线索，不能单独作为违规证据。共享实例只能定位到队伍。「已提交」表示队伍提交的值正是带模型头那次响应下发的标记 flag，证据更强，但仍需人工复核。'
-            : 'Model IDs come from instance request headers. They are review signals, not proof of a rule violation. Shared instances identify teams, not individual players. "Submitted" means the team submitted the exact decoy value handed to a request that reported a model, which is stronger evidence but still needs review.'}
+            ? '模型标识来自实例请求头，属于疑似 AI 使用线索，不能单独作为违规证据。共享实例只能定位到队伍。「已提交」表示队伍提交的值与下发的标记 flag 逐字符相等——下方台账并排列出了两个原值，可直接核对，但仍需人工复核。'
+            : 'Model IDs come from instance request headers. They are review signals, not proof of a rule violation. Shared instances identify teams, not individual players. "Submitted" means the stored answer equals the issued decoy character for character — the ledger below shows both values side by side for verification, and still needs human review.'}
         </Alert>
         {error && <Alert color="red">{isChinese ? '加载检测记录失败' : 'Could not load detection events'}</Alert>}
         {actionError && <Alert color="red">{actionError}</Alert>}
@@ -107,18 +133,25 @@ const AiDetection: FC = () => {
                     <Table.Td>{event.teamName} (#{event.teamId})</Table.Td>
                     <Table.Td>{event.challengeTitle} (#{event.challengeId})</Table.Td>
                     <Table.Td><Text ff="monospace" size="sm">{event.modelId}</Text></Table.Td>
-                    <Table.Td>
-                      {event.markedFlagSubmitted ? (
-                        <Badge color="red" variant="filled">
-                          {isChinese ? '已提交' : 'submitted'}
-                        </Badge>
-                      ) : event.markedFlagIssued ? (
-                        <Badge color="orange" variant="light">
-                          {isChinese ? '已下发' : 'issued'}
-                        </Badge>
-                      ) : (
-                        <Text c="dimmed" size="sm">
-                          —
+                    <Table.Td maw={280}>
+                      <Group gap={4} wrap="nowrap">
+                        {event.markedFlagSubmitted ? (
+                          <Badge color="red" variant="filled">
+                            {isChinese ? '已提交' : 'submitted'}
+                          </Badge>
+                        ) : event.markedFlagIssued ? (
+                          <Badge color="orange" variant="light">
+                            {isChinese ? '已下发' : 'issued'}
+                          </Badge>
+                        ) : (
+                          <Text c="dimmed" size="sm">
+                            —
+                          </Text>
+                        )}
+                      </Group>
+                      {event.markedFlagValue && (
+                        <Text ff="monospace" size="xs" c="dimmed" truncate title={event.markedFlagValue}>
+                          {event.markedFlagValue}
                         </Text>
                       )}
                     </Table.Td>
@@ -131,6 +164,90 @@ const AiDetection: FC = () => {
                     </Table.Td>
                   </Table.Tr>
                 ))}
+              </Table.Tbody>
+            </Table>
+          )}
+        </Paper>
+
+        <Paper withBorder p="md">
+          <Title order={5} mb={4}>
+            {isChinese ? '标记 flag 台账（下发值 vs 提交值）' : 'Decoy ledger (issued vs submitted)'}
+          </Title>
+          <Text size="xs" c="dimmed" mb="sm">
+            {isChinese
+              ? '每一行是一次实际下发的标记 flag。若队伍提交过，右侧并排显示提交记录里的原始答案，可逐字符比对，无需信任徽标。'
+              : 'Each row is one decoy actually issued. If it was submitted, the stored answer is shown next to it for a character-by-character check.'}
+          </Text>
+          {!ledger?.length ? (
+            <Text c="dimmed">{isChinese ? '暂无标记 flag 下发记录' : 'No decoys issued yet'}</Text>
+          ) : (
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{isChinese ? '下发时间' : 'Issued at'}</Table.Th>
+                  <Table.Th>{isChinese ? '队伍' : 'Team'}</Table.Th>
+                  <Table.Th>{isChinese ? '题目' : 'Challenge'}</Table.Th>
+                  <Table.Th>{isChinese ? '模型' : 'Model'}</Table.Th>
+                  <Table.Th>{isChinese ? '下发的标记 flag' : 'Issued value'}</Table.Th>
+                  <Table.Th>{isChinese ? '提交的 flag（原值）' : 'Submitted value'}</Table.Th>
+                  <Table.Th>{isChinese ? '比对' : 'Match'}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {ledger.map((row) => {
+                  const matched = !!row.submittedAnswer && row.submittedAnswer === row.flag
+                  return (
+                    <Table.Tr key={row.id}>
+                      <Table.Td>{dayjs(row.issuedAtUtc).format('MM-DD HH:mm:ss')}</Table.Td>
+                      <Table.Td>{row.teamName}</Table.Td>
+                      <Table.Td>{row.challengeTitle}</Table.Td>
+                      <Table.Td>
+                        <Text ff="monospace" size="sm">
+                          {row.modelId}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td maw={280}>
+                        <Text ff="monospace" size="xs" style={{ wordBreak: 'break-all' }}>
+                          {row.flag}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td maw={280}>
+                        {row.submittedAnswer ? (
+                          <>
+                            <Text ff="monospace" size="xs" style={{ wordBreak: 'break-all' }}>
+                              {row.submittedAnswer}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              #{row.submissionId}
+                              {row.submissionTime ? ` · ${dayjs(row.submissionTime).format('MM-DD HH:mm:ss')}` : ''}
+                            </Text>
+                          </>
+                        ) : (
+                          <Text c="dimmed" size="sm">
+                            {isChinese ? '未提交' : 'not submitted'}
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        {row.submittedAnswer ? (
+                          matched ? (
+                            <Badge color="red" variant="filled">
+                              {isChinese ? '逐字符一致' : 'exact match'}
+                            </Badge>
+                          ) : (
+                            <Badge color="yellow" variant="filled">
+                              {isChinese ? '不一致' : 'mismatch'}
+                            </Badge>
+                          )
+                        ) : (
+                          <Text c="dimmed" size="sm">
+                            —
+                          </Text>
+                        )}
+                      </Table.Td>
+                    </Table.Tr>
+                  )
+                })}
               </Table.Tbody>
             </Table>
           )}
