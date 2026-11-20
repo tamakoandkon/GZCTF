@@ -635,17 +635,20 @@ public class GameController(
             .Distinct()
             .ToArray();
 
-        Dictionary<int, (string Answer, DateTimeOffset Time)> submissions = [];
+        Dictionary<int, (string Answer, DateTimeOffset SubmitTimeUtc)> submissions = [];
         if (submissionIds.Length > 0)
             submissions = (await dbContext.Submissions.AsNoTracking()
                     .Where(s => submissionIds.Contains(s.Id))
-                    .Select(s => new { s.Id, s.Answer, s.Time })
+                    .Select(s => new { s.Id, s.Answer, s.SubmitTimeUtc })
                     .ToArrayAsync(token))
-                .ToDictionary(s => s.Id, s => (s.Answer, s.Time));
+                .ToDictionary(s => s.Id, s => (s.Answer, s.SubmitTimeUtc));
 
         return Ok(rows.Select(r =>
         {
-            var hit = r.SubmissionId is not null && submissions.TryGetValue(r.SubmissionId.Value, out var sub);
+            (string Answer, DateTimeOffset SubmitTimeUtc)? submission = null;
+            if (r.SubmissionId is not null && submissions.TryGetValue(r.SubmissionId.Value, out var found))
+                submission = found;
+
             return new AiMarkedFlagInfoModel
             {
                 Id = r.Id,
@@ -659,8 +662,8 @@ public class GameController(
                 IssuedAtUtc = r.IssuedAtUtc,
                 SubmittedAtUtc = r.SubmittedAtUtc,
                 SubmissionId = r.SubmissionId,
-                SubmittedAnswer = hit ? sub.Answer : null,
-                SubmissionTime = hit ? sub.Time : (DateTimeOffset?)null,
+                SubmittedAnswer = submission?.Answer,
+                SubmissionTime = submission?.SubmitTimeUtc,
                 SubmittedByUserId = r.SubmittedByUserId
             };
         }));
