@@ -10,6 +10,7 @@ import { useRoutes } from 'react-router'
 import { SWRConfig } from 'swr'
 import routes from '~react-pages'
 import { ErrorFallback } from '@Components/ErrorFallback'
+import { AiBanNotice } from '@Components/AiBanNotice'
 import { WsrxProvider } from '@Components/WsrxProvider'
 import { localCacheProvider } from '@Utils/Cache'
 import { useLanguage } from '@Utils/I18n'
@@ -55,6 +56,7 @@ export const App: FC = () => {
                 }}
               >
                 <WsrxProvider>
+                  <AiBanNotice />
                   <Suspense
                     fallback={
                       <Center h="100vh" w="100vw">

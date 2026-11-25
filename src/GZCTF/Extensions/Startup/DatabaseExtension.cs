@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Serilog;
 
 namespace GZCTF.Extensions.Startup;
 
@@ -35,10 +34,6 @@ internal static class DatabaseExtension
             }
             catch (Exception e)
             {
-                if (builder.Configuration.GetSection("ConnectionStrings").GetSection("Database").Exists())
-                    Log.Logger.Error(StaticLocalizer[
-                        nameof(Resources.Program.Database_CurrentConnectionString),
-                        builder.Configuration.GetConnectionString("Database") ?? "null"]);
                 ExitWithFatalMessage(
                     StaticLocalizer[nameof(Resources.Program.Database_ConnectionFailed), e.Message]);
             }

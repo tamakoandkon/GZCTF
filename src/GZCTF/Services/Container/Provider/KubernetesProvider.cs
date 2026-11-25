@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using System.Net;
 using GZCTF.Models.Internal;
 using k8s;
 using k8s.Models;
@@ -9,6 +10,8 @@ namespace GZCTF.Services.Container.Provider;
 
 public class KubernetesMetadata : ContainerProviderMetadata
 {
+    public string AiDetectionCallbackUrl { get; set; } = string.Empty;
+    public string AiDetectionProxyImage { get; set; } = "node:24-alpine";
     /// <summary>
     /// The secret names for registry authentication
     /// </summary>
@@ -37,7 +40,9 @@ public class KubernetesProvider : IContainerProvider<Kubernetes, KubernetesMetad
         {
             Config = options.Value.KubernetesConfig ?? new(),
             PortMappingType = options.Value.PortMappingType,
-            PublicEntry = options.Value.PublicEntry
+            PublicEntry = options.Value.PublicEntry,
+            AiDetectionCallbackUrl = options.Value.AiDetectionCallbackUrl,
+            AiDetectionProxyImage = options.Value.AiDetectionProxyImage
         };
 
         KubernetesClientConfiguration config;
@@ -93,6 +98,9 @@ public class KubernetesProvider : IContainerProvider<Kubernetes, KubernetesMetad
         // create network policies (replace if exists)
         EnsureNetworkPolicy(OpenNetworkPolicy);
         EnsureNetworkPolicy(IsolatedNetworkPolicy);
+        if (Uri.TryCreate(_kubernetesMetadata.AiDetectionCallbackUrl, UriKind.Absolute, out var callback) &&
+            IPAddress.TryParse(callback.Host, out var callbackIp))
+            EnsureNetworkPolicy(AiDetectionNetworkPolicy(callbackIp, callback.Port));
 
         // create auth secrets for registries
         foreach (var registry in registries.Where(registry => registry.Value.Valid))
@@ -115,6 +123,40 @@ public class KubernetesProvider : IContainerProvider<Kubernetes, KubernetesMetad
 
     private const string IsolatedNetworkPolicyName = "gzctf-network-isolated";
     private const string OpenNetworkPolicyName = "gzctf-network-open";
+    private const string AiDetectionNetworkPolicyName = "gzctf-ai-detection-egress";
+
+    private static V1NetworkPolicy AiDetectionNetworkPolicy(IPAddress callbackIp, int callbackPort) => new()
+    {
+        Metadata = new V1ObjectMeta { Name = AiDetectionNetworkPolicyName },
+        Spec = new V1NetworkPolicySpec
+        {
+            PodSelector = new V1LabelSelector
+            {
+                MatchLabels = new Dictionary<string, string>
+                {
+                    ["gzctf.gzti.me/AiDetection"] = "enabled"
+                }
+            },
+            PolicyTypes = ["Egress"],
+            Egress =
+            [
+                new V1NetworkPolicyEgressRule
+                {
+                    Ports = [new V1NetworkPolicyPort { Port = callbackPort, Protocol = "TCP" }],
+                    To =
+                    [
+                        new V1NetworkPolicyPeer
+                        {
+                            IpBlock = new V1IPBlock
+                            {
+                                Cidr = $"{callbackIp}/{(callbackIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork ? 32 : 128)}"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    };
 
     /// <summary>
     /// Isolated Network Policy

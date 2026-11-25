@@ -944,6 +944,12 @@
   <data name="Challenge_CaptureNotAllowed" xml:space="preserve">
     <value>Enable traffic capture only for challenge with containers</value>
   </data>
+  <data name="Challenge_AiDetectionPwnNotSupported" xml:space="preserve">
+    <value>The response-header AI probe only supports HTTP instances and cannot be enabled for Pwn/TCP challenges.</value>
+  </data>
+  <data name="Challenge_AiDetectionCallbackRequired" xml:space="preserve">
+    <value>AI detection requires a valid HTTP(S) callback URL.</value>
+  </data>
   <data name="Challenge_DynamicAssetsNotNullable" xml:space="preserve">
     <value>Dynamic attachment name cannot be empty</value>
   </data>

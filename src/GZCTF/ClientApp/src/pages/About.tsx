@@ -19,7 +19,7 @@ import contributorsData from 'virtual:contributors'
 import { WithNavBar } from '@Components/WithNavbar'
 import { MainIcon } from '@Components/icon/MainIcon'
 import { useIsMobile } from '@Utils/ThemeOverride'
-import { ValidatedRepoMeta, useConfig } from '@Hooks/useConfig'
+import { ValidatedRepoMeta } from '@Hooks/useConfig'
 import { usePageTitle } from '@Hooks/usePageTitle'
 import classes from '@Styles/About.module.css'
 
@@ -37,7 +37,6 @@ const maintainers: Maintainer[] = [
 
 const About: FC = () => {
   const { repo, valid, rawTag: tag, sha, buildTime } = ValidatedRepoMeta()
-  const { config } = useConfig()
   const { t } = useTranslation()
   const theme = useMantineTheme()
   const shortSha = `#${sha.substring(0, 8)}`
@@ -61,9 +60,9 @@ const About: FC = () => {
         <Center>
           <Stack align="center" gap={0}>
             <MainIcon size="5rem" className={classes.mainIcon} />
-              <Title order={1} size="3.5rem" fw={800} ta="center" className={classes.mainTitle}>
-                {config?.title ?? 'GZ::CTF'}
-              </Title>
+            <Title order={1} size="3.5rem" fw={800} ta="center" className={classes.mainTitle}>
+              GZ::CTF
+            </Title>
             <Text size="xl" fw={500} ta="center" c="dimmed" ff="monospace" mt="xs" className={classes.slogan}>
               &gt;&nbsp;{t('common.content.about.slogan')}
               <Text span className={classes.blink}>

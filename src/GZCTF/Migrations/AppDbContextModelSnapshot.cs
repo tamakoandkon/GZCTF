@@ -18,10 +18,58 @@ namespace GZCTF.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("GZCTF.Models.Data.AiDetectionEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ChallengeId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ChallengeTitle")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ContainerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ModelId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("ParticipationId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("SeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TeamName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContainerId");
+
+                    b.HasIndex("GameId", "SeenAt");
+
+                    b.ToTable("AiDetectionEvents");
+                });
 
             modelBuilder.Entity("GZCTF.Models.Data.ApiToken", b =>
                 {
@@ -137,6 +185,9 @@ namespace GZCTF.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AiDetectionToken")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ContainerId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -177,6 +228,9 @@ namespace GZCTF.Migrations
                         .HasColumnType("smallint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AiDetectionToken")
+                        .IsUnique();
 
                     b.HasIndex("ExerciseInstanceId")
                         .IsUnique();
@@ -363,7 +417,8 @@ namespace GZCTF.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("SubmitTimeUtc")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasJsonPropertyName("time");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -553,6 +608,9 @@ namespace GZCTF.Migrations
                         .HasColumnType("double precision");
 
                     b.Property<bool>("DisableBloodBonus")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("EnableAiDetection")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("EnableTrafficCapture")
@@ -806,6 +864,69 @@ namespace GZCTF.Migrations
                     b.ToTable("Logs");
                 });
 
+            modelBuilder.Entity("GZCTF.Models.Data.MarkedFlag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ChallengeId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ChallengeTitle")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ContainerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Flag")
+                        .IsRequired()
+                        .HasMaxLength(127)
+                        .HasColumnType("character varying(127)");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("IssuedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ModelId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("ParticipationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SubmissionId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SubmittedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TeamName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContainerId");
+
+                    b.HasIndex("GameId", "Flag")
+                        .IsUnique();
+
+                    b.ToTable("MarkedFlags");
+                });
+
             modelBuilder.Entity("GZCTF.Models.Data.Participation", b =>
                 {
                     b.Property<int>("Id")
@@ -813,6 +934,15 @@ namespace GZCTF.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AiAppealId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("AiBanAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AiBanEventId")
+                        .HasColumnType("uuid");
 
                     b.Property<int?>("DivisionId")
                         .HasColumnType("integer");
@@ -834,6 +964,8 @@ namespace GZCTF.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AiAppealId");
 
                     b.HasIndex("DivisionId");
 
@@ -1729,6 +1861,10 @@ namespace GZCTF.Migrations
 
             modelBuilder.Entity("GZCTF.Models.Data.Participation", b =>
                 {
+                    b.HasOne("GZCTF.Models.Data.LocalFile", "AiAppeal")
+                        .WithMany()
+                        .HasForeignKey("AiAppealId");
+
                     b.HasOne("GZCTF.Models.Data.Division", "Division")
                         .WithMany()
                         .HasForeignKey("DivisionId")
@@ -1749,6 +1885,8 @@ namespace GZCTF.Migrations
                     b.HasOne("GZCTF.Models.Data.LocalFile", "Writeup")
                         .WithMany()
                         .HasForeignKey("WriteupId");
+
+                    b.Navigation("AiAppeal");
 
                     b.Navigation("Division");
 

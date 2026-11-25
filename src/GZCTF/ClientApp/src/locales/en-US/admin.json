@@ -189,6 +189,11 @@
           "description": "Capturing the traffic when the team solves challenges. Platform proxy needs to be enabled",
           "label": "Enable Traffic Capture"
         },
+        "ai_detection": {
+          "description": "Only for dynamic HTTP instances. Raw TCP services will become unreachable with this probe. Matches require manual review.",
+          "label": "Enable AI Detection",
+          "pwn_unsupported": "Pwn/TCP challenges cannot use the response-header probe. Turn it off to keep the instance reachable."
+        },
         "type": {
           "description": "Cannot be changed after creation",
           "label": "Type"

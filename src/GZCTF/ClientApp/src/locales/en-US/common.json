@@ -62,6 +62,13 @@
     "wider": {
       "text": "Try to use a wider device",
       "title": "Not wide enough"
+    },
+    "viewer": {
+      "failed": "Unable to open the viewing room. Please try again later.",
+      "go_team": "Go to teams",
+      "redirecting": "Entering the viewing room…",
+      "team_required": "Join a team before entering the viewing room.",
+      "unavailable": "The viewing system is temporarily unavailable. Please try again later."
     }
   },
   "download": {
@@ -132,7 +139,8 @@
       "dark": "dark mode",
       "light": "light mode",
       "switch_to": "Switch to {{theme}}"
-    }
+    },
+    "viewer": "Spectate"
   },
   "title": {
     "404": "The Nowhere",

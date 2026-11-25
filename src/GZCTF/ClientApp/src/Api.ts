@@ -1291,6 +1291,7 @@ export interface ChallengeEditDetailModel {
   networkMode?: NetworkMode | null;
   /** Whether to record traffic */
   enableTrafficCapture?: boolean | null;
+  enableAiDetection?: boolean | null;
   /** Whether to disable blood bonus */
   disableBloodBonus?: boolean | null;
   /**
@@ -1486,6 +1487,7 @@ export interface ChallengeUpdateModel {
   networkMode?: NetworkMode | null;
   /** Is traffic capture enabled (disabled by default) */
   enableTrafficCapture?: boolean | null;
+  enableAiDetection?: boolean | null;
   /** Is blood bonus disabled (enable by default) */
   disableBloodBonus?: boolean | null;
   /**
@@ -1805,6 +1807,7 @@ export interface GameChallengeFromPoolModel {
   disableBloodBonus?: boolean | null;
   /** Is traffic capture enabled (disabled by default) */
   enableTrafficCapture?: boolean | null;
+  enableAiDetection?: boolean | null;
 }
 
 /** Basic exercise information */
@@ -2407,6 +2410,16 @@ export interface Submission {
   team?: string;
   /** Challenge that was submitted */
   challenge?: string;
+  /**
+   * Monitor only: AI identifier that caused this decoy flag to be issued
+   * @nullable
+   */
+  markedFlagModel?: string | null;
+  /**
+   * Monitor only: when the decoy flag was issued
+   * @nullable
+   */
+  markedFlagIssuedAt?: string | null;
 }
 
 /** Cheat behavior information */
@@ -2546,6 +2559,9 @@ export interface ParticipationInfoModel {
   divisionId?: number | null;
   /** Participation status */
   status: ParticipationStatus;
+  aiBanAt?: string | null;
+  aiAppealUrl?: string | null;
+  aiAppealSubmittedAt?: string | null;
 }
 
 /** Detailed team information for review (Admin) */

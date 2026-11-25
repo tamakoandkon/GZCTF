@@ -315,7 +315,11 @@ const GameChallengeEdit: FC = () => {
               disabled={disabled || linked}
               onChange={(e) => {
                 setCategory(e)
-                setChallengeInfo({ ...challengeInfo, category: e as ChallengeCategory })
+                setChallengeInfo({
+                  ...challengeInfo,
+                  category: e as ChallengeCategory,
+                  enableAiDetection: e === ChallengeCategory.Pwn ? false : challengeInfo.enableAiDetection,
+                })
               }}
               renderOption={ChallengeCategoryItem}
               data={ChallengeCategoryList.map((category) => {
@@ -608,6 +612,21 @@ const GameChallengeEdit: FC = () => {
                 )}
                 onChange={(e) => setChallengeInfo({ ...challengeInfo, enableTrafficCapture: e.target.checked })}
               />
+              {type === ChallengeType.DynamicContainer && (
+                <Switch
+                  disabled={disabled || (category === ChallengeCategory.Pwn && !challengeInfo.enableAiDetection)}
+                  checked={challengeInfo.enableAiDetection ?? false}
+                  label={SwitchLabel(
+                    t('admin.content.games.challenges.ai_detection.label'),
+                    t(
+                      category === ChallengeCategory.Pwn
+                        ? 'admin.content.games.challenges.ai_detection.pwn_unsupported'
+                        : 'admin.content.games.challenges.ai_detection.description'
+                    )
+                  )}
+                  onChange={(e) => setChallengeInfo({ ...challengeInfo, enableAiDetection: e.target.checked })}
+                />
+              )}
             </Grid.Col>
           </Grid>
         )}

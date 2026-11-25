@@ -488,7 +488,29 @@ public class GameController(
         if (DateTimeOffset.UtcNow < game.StartTimeUtc)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
-        return Ok(await submissionRepository.GetSubmissions(game, type, count, skip, token));
+        var submissions = await submissionRepository.GetSubmissions(game, type, count, skip, token);
+
+        // Monitor-only annotation. Player-facing responses never carry this field, so a
+        // decoy submission keeps looking like an ordinary wrong answer to its sender.
+        var markedFlags = await dbContext.MarkedFlags.AsNoTracking()
+            .Where(f => f.GameId == id)
+            .Select(f => new { f.Flag, f.ModelId, f.IssuedAtUtc })
+            .ToArrayAsync(token);
+
+        if (markedFlags.Length > 0)
+        {
+            var map = markedFlags.ToDictionary(f => f.Flag);
+            foreach (var submission in submissions)
+            {
+                if (!map.TryGetValue(submission.Answer, out var marked))
+                    continue;
+
+                submission.MarkedFlagModel = marked.ModelId;
+                submission.MarkedFlagIssuedAtUtc = marked.IssuedAtUtc;
+            }
+        }
+
+        return Ok(submissions);
     }
 
     /// <summary>
@@ -518,6 +540,266 @@ public class GameController(
 
         return Ok((await cheatInfoRepository.GetCheatInfoByGameId(game.Id, token))
             .Select(CheatInfoModel.FromCheatInfo));
+    }
+
+    /// <summary>
+    /// List voluntary AI identifiers observed on this game's dynamic instances.
+    /// A matching request header is a review signal, not proof of cheating.
+    /// </summary>
+    [RequireMonitor]
+    [HttpGet("{id:int}/AiDetections")]
+    [ProducesResponseType(typeof(AiDetectionInfoModel[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AiDetections([FromRoute] int id, CancellationToken token = default)
+    {
+        var game = await gameRepository.GetGameById(id, token);
+        if (game is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        var events = await dbContext.AiDetectionEvents.AsNoTracking()
+            .Where(e => e.GameId == id)
+            .OrderByDescending(e => e.SeenAt)
+            .Take(500)
+            .ToArrayAsync(token);
+
+        var marked = await dbContext.MarkedFlags.AsNoTracking()
+            .Where(f => f.GameId == id)
+            .OrderByDescending(f => f.IssuedAtUtc)
+            .Take(2000)
+            .Select(f => new
+            {
+                f.ParticipationId, f.ChallengeId, f.ModelId, f.Flag, f.IssuedAtUtc, f.SubmittedAtUtc
+            })
+            .ToArrayAsync(token);
+
+        return Ok(events.Select(e =>
+        {
+            // Pair the event with the decoy issued closest in time for the same model,
+            // so "issued" is not shown for events that never received one.
+            var candidate = marked
+                .Where(f => f.ParticipationId == e.ParticipationId &&
+                            f.ChallengeId == e.ChallengeId &&
+                            string.Equals(f.ModelId, e.ModelId, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => Math.Abs((f.IssuedAtUtc - e.SeenAt).TotalSeconds))
+                .FirstOrDefault();
+
+            return new AiDetectionInfoModel
+            {
+                Id = e.Id,
+                ChallengeId = e.ChallengeId,
+                ChallengeTitle = e.ChallengeTitle,
+                TeamId = e.TeamId,
+                TeamName = e.TeamName,
+                ParticipationId = e.ParticipationId,
+                ModelId = e.ModelId,
+                SeenAt = e.SeenAt,
+                MarkedFlagIssued = candidate is not null,
+                MarkedFlagIssuedAt = candidate?.IssuedAtUtc,
+                MarkedFlagSubmitted = candidate?.SubmittedAtUtc is not null,
+                MarkedFlagSubmittedAt = candidate?.SubmittedAtUtc,
+                MarkedFlagValue = candidate?.Flag
+            };
+        }));
+    }
+
+    /// <summary>
+    /// Ledger of decoy flags issued on this game's instances.
+    /// Each row carries the exact issued value and the submitted answer, so the
+    /// match can be verified by eye.
+    /// </summary>
+    /// <remarks>
+    /// Listing the decoy ledger requires monitor privileges
+    /// </remarks>
+    /// <param name="id">Game ID</param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully retrieved the decoy ledger</response>
+    /// <response code="404">Game not found</response>
+    [RequireMonitor]
+    [HttpGet("{id:int}/AiMarkedFlags")]
+    [ProducesResponseType(typeof(AiMarkedFlagInfoModel[]), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AiMarkedFlags([FromRoute] int id, CancellationToken token = default)
+    {
+        var game = await gameRepository.GetGameById(id, token);
+        if (game is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        var rows = await dbContext.MarkedFlags.AsNoTracking()
+            .Where(f => f.GameId == id)
+            .OrderByDescending(f => f.IssuedAtUtc)
+            .Take(500)
+            .ToArrayAsync(token);
+
+        var submissionIds = rows.Where(r => r.SubmissionId is not null)
+            .Select(r => r.SubmissionId!.Value)
+            .Distinct()
+            .ToArray();
+
+        Dictionary<int, (string Answer, DateTimeOffset SubmitTimeUtc)> submissions = [];
+        if (submissionIds.Length > 0)
+            submissions = (await dbContext.Submissions.AsNoTracking()
+                    .Where(s => submissionIds.Contains(s.Id))
+                    .Select(s => new { s.Id, s.Answer, s.SubmitTimeUtc })
+                    .ToArrayAsync(token))
+                .ToDictionary(s => s.Id, s => (s.Answer, s.SubmitTimeUtc));
+
+        return Ok(rows.Select(r =>
+        {
+            (string Answer, DateTimeOffset SubmitTimeUtc)? submission = null;
+            if (r.SubmissionId is not null && submissions.TryGetValue(r.SubmissionId.Value, out var found))
+                submission = found;
+
+            return new AiMarkedFlagInfoModel
+            {
+                Id = r.Id,
+                ChallengeId = r.ChallengeId,
+                ChallengeTitle = r.ChallengeTitle,
+                TeamId = r.TeamId,
+                TeamName = r.TeamName,
+                ParticipationId = r.ParticipationId,
+                ModelId = r.ModelId,
+                Flag = r.Flag,
+                IssuedAtUtc = r.IssuedAtUtc,
+                SubmittedAtUtc = r.SubmittedAtUtc,
+                SubmissionId = r.SubmissionId,
+                SubmittedAnswer = submission?.Answer,
+                SubmissionTime = submission?.SubmitTimeUtc,
+                SubmittedByUserId = r.SubmittedByUserId
+            };
+        }));
+    }
+
+    public sealed record AiBanRequest(Guid DetectionId);
+
+    [RequireMonitor]
+    [HttpGet("{id:int}/AiBans")]
+    public async Task<IActionResult> GetGameAiBans(int id, CancellationToken token)
+    {
+        return Ok(await dbContext.Participations.AsNoTracking()
+            .Where(p => p.GameId == id && p.AiBanAt != null && p.Status == ParticipationStatus.Suspended)
+            .Select(p => p.Id).ToArrayAsync(token));
+    }
+
+    [RequireMonitor]
+    [HttpPost("{id:int}/AiBan/{participationId:int}")]
+    public async Task<IActionResult> BanForAgentUse(int id, int participationId,
+        [FromBody] AiBanRequest request, CancellationToken token)
+    {
+        var detection = await dbContext.AiDetectionEvents.AsNoTracking()
+            .AnyAsync(e => e.Id == request.DetectionId && e.GameId == id &&
+                           e.ParticipationId == participationId, token);
+        if (!detection)
+            return BadRequest();
+
+        var part = await participationRepository.GetParticipationById(participationId, token);
+        if (part is null || part.GameId != id)
+            return NotFound();
+        if (part.Status != ParticipationStatus.Accepted && part.AiBanAt is null)
+            return BadRequest();
+
+        if (part.AiBanAt is null)
+        {
+            part.AiBanAt = DateTimeOffset.UtcNow;
+            part.AiBanEventId = request.DetectionId;
+            await participationRepository.UpdateParticipationStatus(part, ParticipationStatus.Suspended, token);
+            await cacheHelper.FlushScoreboardCache(id, token);
+        }
+
+        var allClosed = true;
+        var containers = await dbContext.GameInstances.Include(i => i.Container)
+            .Where(i => i.ParticipationId == participationId && i.ContainerId != null)
+            .Select(i => i.Container)
+            .ToArrayAsync(token);
+        foreach (var container in containers)
+        {
+            if (container is not null && !await containerRepository.DestroyContainer(container, token))
+                allClosed = false;
+        }
+        return Ok(new { instancesClosed = allClosed });
+    }
+
+    [RequireMonitor]
+    [HttpDelete("{id:int}/AiBan/{participationId:int}")]
+    public async Task<IActionResult> LiftAgentBan(int id, int participationId, CancellationToken token)
+    {
+        var part = await participationRepository.GetParticipationById(participationId, token);
+        if (part is null || part.GameId != id || part.AiBanAt is null)
+            return NotFound();
+        await participationRepository.UpdateParticipationStatus(part, ParticipationStatus.Accepted, token);
+        await cacheHelper.FlushScoreboardCache(id, token);
+        return Ok();
+    }
+
+    public sealed record ActiveAiBan(int GameId, string GameTitle, DateTimeOffset BanAt,
+        DateTimeOffset? AppealSubmittedAt);
+
+    [RequireUser]
+    [HttpGet("AiBans")]
+    public async Task<IActionResult> GetMyAiBans(CancellationToken token)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
+        return Ok(await dbContext.Participations.AsNoTracking()
+            .Where(p => p.Members.Any(m => m.UserId == user.Id) &&
+                        p.Status == ParticipationStatus.Suspended && p.AiBanAt != null)
+            .Select(p => new ActiveAiBan(p.GameId, p.Game.Title, p.AiBanAt!.Value,
+                p.AiAppeal != null && p.AiAppeal.UploadTimeUtc >= p.AiBanAt
+                    ? p.AiAppeal.UploadTimeUtc : null))
+            .ToArrayAsync(token));
+    }
+
+    [RequireUser]
+    [HttpPost("{id:int}/AiAppeal")]
+    [RequestSizeLimit(21 * 1024 * 1024)]
+    public async Task<IActionResult> SubmitAiAppeal(int id, IFormFile file, CancellationToken token)
+    {
+        if (file.Length is < 5 or > 20 * 1024 * 1024 ||
+            !string.Equals(Path.GetExtension(file.FileName), ".pdf", StringComparison.OrdinalIgnoreCase) ||
+            file.ContentType != "application/pdf")
+            return BadRequest();
+        await using (var stream = file.OpenReadStream())
+        {
+            var signature = new byte[5];
+            if (await stream.ReadAsync(signature, token) != signature.Length ||
+                !signature.AsSpan().SequenceEqual("%PDF-"u8))
+                return BadRequest();
+        }
+
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
+        var part = await dbContext.Participations.Include(p => p.AiAppeal)
+            .FirstOrDefaultAsync(p => p.GameId == id && p.Members.Any(m => m.UserId == user.Id), token);
+        if (part is null || part.AiBanAt is null || part.Status != ParticipationStatus.Suspended)
+            return BadRequest();
+
+        var oldAppeal = part.AiAppeal;
+        part.AiAppeal = await blobService.CreateOrUpdateBlob(file,
+            $"AiAppeal-{id}-{part.TeamId}-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.pdf", token);
+        await participationRepository.SaveAsync(token);
+        if (oldAppeal is not null)
+            await blobService.DeleteBlob(oldAppeal, token);
+        return Ok();
+    }
+
+    [RequireAdmin]
+    [HttpGet("{id:int}/AiAppeal/{participationId:int}")]
+    public async Task<IActionResult> GetAiAppeal(int id, int participationId, CancellationToken token)
+    {
+        var file = await dbContext.Participations.AsNoTracking()
+            .Where(p => p.Id == participationId && p.GameId == id)
+            .Select(p => p.AiAppeal)
+            .FirstOrDefaultAsync(token);
+        if (file is null)
+            return NotFound();
+
+        var path = StoragePath.Combine(PathHelper.Uploads, file.Location, file.Hash);
+        if (!await storage.ExistsAsync(path, token))
+            return NotFound();
+
+        Response.Headers.CacheControl = "private, no-store";
+        return File(await storage.OpenReadAsync(path, token), MediaTypeNames.Application.Pdf);
     }
 
     /// <summary>

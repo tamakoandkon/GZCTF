@@ -101,6 +101,11 @@ public class ChallengeUpdateModel
     public bool? EnableTrafficCapture { get; set; }
 
     /// <summary>
+    /// Enable the HTTP AI identification probe for dynamic container challenges.
+    /// </summary>
+    public bool? EnableAiDetection { get; set; }
+
+    /// <summary>
     /// Is blood bonus disabled (enable by default)
     /// </summary>
     public bool? DisableBloodBonus { get; set; }

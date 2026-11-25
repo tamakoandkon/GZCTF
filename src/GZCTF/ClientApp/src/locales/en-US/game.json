@@ -228,6 +228,7 @@
     "challenge": "Challenges",
     "monitor": {
       "cheatinfo": "Cheats",
+      "ai_detection": "Possible AI Use",
       "events": "Events",
       "index": "Monitoring",
       "submissions": "Submissions",

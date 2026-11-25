@@ -2,6 +2,7 @@
 using System.Net.Mime;
 using GZCTF.Extensions;
 using GZCTF.Middlewares;
+using GZCTF.Models.Internal;
 using GZCTF.Models.Request.Edit;
 using GZCTF.Models.Request.Game;
 using GZCTF.Models.Request.Info;
@@ -13,6 +14,7 @@ using GZCTF.Services.Transfer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Options;
 using NSwag.Annotations;
 
 namespace GZCTF.Controllers;
@@ -43,8 +45,13 @@ public class EditController(
     IDivisionRepository divisionRepository,
     IPoolChallengeRepository poolChallengeRepository,
     IExerciseInstanceRepository exerciseInstanceRepository,
+    IOptions<ContainerProvider> containerProvider,
     IStringLocalizer<Program> localizer) : Controller
 {
+    private static bool HasValidAiCallback(ContainerProvider config) =>
+        Uri.TryCreate(config.AiDetectionCallbackUrl, UriKind.Absolute, out var callback) &&
+        (callback.Scheme == Uri.UriSchemeHttp || callback.Scheme == Uri.UriSchemeHttps);
+
     /// <summary>
     /// Add Post
     /// </summary>
@@ -722,6 +729,16 @@ public class EditController(
         if (model.EnableTrafficCapture is true && !content.Type.IsContainer())
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_CaptureNotAllowed)]));
 
+        if (model.EnableAiDetection is true && content.Type != ChallengeType.DynamicContainer)
+            return BadRequest(new RequestResponse("AI detection is only available for dynamic container challenges."));
+
+        if (model.EnableAiDetection is true &&
+            (res.IsLinked ? content.Category : model.Category ?? content.Category) == ChallengeCategory.Pwn)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionPwnNotSupported)]));
+
+        if (model.EnableAiDetection is true && !HasValidAiCallback(containerProvider.Value))
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionCallbackRequired)]));
+
         if (model.FileName is not null && string.IsNullOrWhiteSpace(model.FileName))
             return BadRequest(
                 new RequestResponse(localizer[nameof(Resources.Program.Challenge_DynamicAssetsNotNullable)]));
@@ -1077,6 +1094,7 @@ public class EditController(
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status500InternalServerError)]
+    [RequestSizeLimit(513L * 1024 * 1024)]
     [RequestFormLimits(ValueLengthLimit = int.MaxValue, MultipartBodyLengthLimit = long.MaxValue)]
     public async Task<IActionResult> ImportGame(IFormFile file, CancellationToken token = default)
     {
@@ -1557,6 +1575,15 @@ public class EditController(
             return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Challenge_NotFound)],
                 StatusCodes.Status404NotFound));
 
+        if (model.EnableAiDetection is true && pool.Type != ChallengeType.DynamicContainer)
+            return BadRequest(new RequestResponse("AI detection is only available for dynamic container challenges."));
+
+        if (model.EnableAiDetection is true && pool.Category == ChallengeCategory.Pwn)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionPwnNotSupported)]));
+
+        if (model.EnableAiDetection is true && !HasValidAiCallback(containerProvider.Value))
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Challenge_AiDetectionCallbackRequired)]));
+
         // prevent the same game from referencing the same pool challenge twice
         if (await challengeRepository.GetChallengeByPoolId(id, model.PoolChallengeId, token) is not null)
             return BadRequest(
@@ -1573,6 +1600,8 @@ public class EditController(
             Difficulty = model.Difficulty ?? 5,
             DisableBloodBonus = model.DisableBloodBonus ?? false,
             EnableTrafficCapture = pool.Type.IsContainer() && (model.EnableTrafficCapture ?? false),
+            EnableAiDetection = pool.Type == ChallengeType.DynamicContainer && pool.Category != ChallengeCategory.Pwn &&
+                                (model.EnableAiDetection ?? false),
             IsEnabled = false // matches manually created challenges
         }, token);
 

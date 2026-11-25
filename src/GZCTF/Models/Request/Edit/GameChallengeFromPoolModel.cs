@@ -38,4 +38,6 @@ public class GameChallengeFromPoolModel
     /// Is traffic capture enabled (disabled by default)
     /// </summary>
     public bool? EnableTrafficCapture { get; set; }
+
+    public bool? EnableAiDetection { get; set; }
 }

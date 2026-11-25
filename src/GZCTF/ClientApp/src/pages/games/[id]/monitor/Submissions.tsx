@@ -82,6 +82,7 @@ const Submissions: FC = () => {
   const iconMap = AnswerResultIconMap(0.8)
   const { classes: inputClasses } = useDisplayInputStyles({ ff: 'monospace' })
   const theme = useMantineTheme()
+  const { colorScheme } = useMantineColorScheme()
 
   const { t } = useTranslation()
   const { locale } = useLanguage()
@@ -163,7 +164,13 @@ const Submissions: FC = () => {
       className={cx({ [tableClasses.fade]: i === 0 && activePage === 1 && filteredSubs.length > 0 })}
     >
       <Table.Td>
-        <Icon {...iconMap.get(item.status ?? AnswerResult.FlagSubmitted)!} />
+        {item.markedFlagModel ? (
+          <Tooltip label={`标记 flag · 下发自 ${item.markedFlagModel}`}>
+            <Icon path={mdiExclamationThick} size={1.2} color={theme.colors.orange[colorScheme === 'dark' ? 4 : 7]} />
+          </Tooltip>
+        ) : (
+          <Icon {...iconMap.get(item.status ?? AnswerResult.FlagSubmitted)!} />
+        )}
       </Table.Td>
       <Table.Td ff="monospace">
         <Badge size="sm" color="indigo" fullWidth>
@@ -182,7 +189,16 @@ const Submissions: FC = () => {
       </Table.Td>
       <Table.Td>{item.challenge ?? 'Challenge'}</Table.Td>
       <Table.Td w="36vw" maw="100%" p="0">
-        <Input variant="unstyled" value={item.answer} readOnly size="sm" classNames={inputClasses} />
+        <Group gap="xs" wrap="nowrap" px="sm">
+          <Input variant="unstyled" value={item.answer} readOnly size="sm" classNames={inputClasses} />
+          {item.markedFlagModel && (
+            <Tooltip label={`该值由带模型头的响应下发 · ${dayjs(item.markedFlagIssuedAt).format('HH:mm:ss')}`}>
+              <Badge size="sm" color="orange" variant="light">
+                MF
+              </Badge>
+            </Tooltip>
+          )}
+        </Group>
       </Table.Td>
     </Table.Tr>
   ))

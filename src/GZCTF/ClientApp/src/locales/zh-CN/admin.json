@@ -189,6 +189,11 @@
           "description": "捕获队伍解题流量，需要开启平台代理",
           "label": "开启流量捕获"
         },
+        "ai_detection": {
+          "description": "仅适用于动态 HTTP 实例；原始 TCP 题开启后会导致连接失败，命中仅作为人工复核线索",
+          "label": "开启 AI 做题检测",
+          "pwn_unsupported": "Pwn/TCP 题不支持响应头 AI 探针；请关闭此开关以保持实例可连接"
+        },
         "type": {
           "description": "创建后不可更改",
           "label": "题目类型"

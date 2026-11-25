@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,6 +47,21 @@ public class Submission
     /// </summary>
     [JsonPropertyName("challenge")]
     public string ChallengeName => GameChallenge?.Title ?? string.Empty;
+
+    /// <summary>
+    /// Set only on monitor queries: the AI identifier that caused this decoy flag to be
+    /// issued. Never populated for player-facing responses or realtime pushes.
+    /// </summary>
+    [NotMapped]
+    [JsonPropertyName("markedFlagModel")]
+    public string? MarkedFlagModel { get; set; }
+
+    /// <summary>
+    /// Set only on monitor queries: when the decoy flag was issued
+    /// </summary>
+    [NotMapped]
+    [JsonPropertyName("markedFlagIssuedAt")]
+    public DateTimeOffset? MarkedFlagIssuedAtUtc { get; set; }
 
     #region Db Relationship
 

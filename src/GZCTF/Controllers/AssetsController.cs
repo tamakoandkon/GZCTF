@@ -84,6 +84,7 @@ public class AssetsController(
     [HttpPost("api/[controller]")]
     [ProducesResponseType(typeof(List<LocalFile>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    [RequestSizeLimit(513L * 1024 * 1024)]
     [RequestFormLimits(ValueLengthLimit = int.MaxValue, MultipartBodyLengthLimit = long.MaxValue)]
     public async Task<IActionResult> Upload(List<IFormFile> files, [FromQuery] string? filename,
         CancellationToken token)

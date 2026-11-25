@@ -944,6 +944,12 @@
   <data name="Challenge_CaptureNotAllowed" xml:space="preserve">
     <value>只有容器题目可以进行流量捕获</value>
   </data>
+  <data name="Challenge_AiDetectionPwnNotSupported" xml:space="preserve">
+    <value>响应头 AI 探针仅支持 HTTP 实例，不能用于 Pwn/TCP 题目。</value>
+  </data>
+  <data name="Challenge_AiDetectionCallbackRequired" xml:space="preserve">
+    <value>AI 检测需要配置有效的 HTTP(S) 回调地址。</value>
+  </data>
   <data name="Challenge_DynamicAssetsNotNullable" xml:space="preserve">
     <value>动态附件名不可为空</value>
   </data>

@@ -21,7 +21,7 @@ import { useParams } from 'react-router'
 import { showErrorMsg } from '@Utils/Shared'
 import { ChallengeCategoryItem, ChallengeCategoryList, useChallengeCategoryLabelMap } from '@Utils/Shared'
 import { useEditPools } from '@Hooks/useEdit'
-import api, { ChallengeCategory, PoolChallengeInfoModel } from '@Api'
+import api, { ChallengeCategory, ChallengeType, PoolChallengeInfoModel } from '@Api'
 
 interface PoolChallengePickerModalProps extends ModalProps {
   onAdded: () => void
@@ -44,6 +44,7 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
   const [difficulty, setDifficulty] = useState<number | undefined>(5)
   const [disableBloodBonus, setDisableBloodBonus] = useState(false)
   const [enableTrafficCapture, setEnableTrafficCapture] = useState(false)
+  const [enableAiDetection, setEnableAiDetection] = useState(false)
   const [disabled, setDisabled] = useState(false)
 
   const filtered = (pools ?? []).filter(
@@ -63,6 +64,7 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
         difficulty,
         disableBloodBonus,
         enableTrafficCapture,
+        enableAiDetection,
       })
       showNotification({
         color: 'teal',
@@ -107,7 +109,10 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
           required
           placeholder="Search challenges"
           value={selected ? String(selected.id) : null}
-          onChange={(v) => setSelected(filtered.find((p) => String(p.id) === v) ?? null)}
+          onChange={(v) => {
+            setSelected(filtered.find((p) => String(p.id) === v) ?? null)
+            setEnableAiDetection(false)
+          }}
           data={filtered.map((p) => ({ value: String(p.id), label: `${p.title} (${p.rangeScore}pts)` }))}
           nothingFoundMessage={t('admin.content.nothing_found')}
         />
@@ -152,6 +157,19 @@ export const PoolChallengePickerModal: FC<PoolChallengePickerModalProps> = (prop
               label={t('admin.content.games.challenges.traffic_capture.label')}
               onChange={(e) => setEnableTrafficCapture(e.target.checked)}
             />
+            {selected?.type === ChallengeType.DynamicContainer && (
+              <Switch
+                disabled={selected.category === ChallengeCategory.Pwn}
+                checked={enableAiDetection}
+                label={t('admin.content.games.challenges.ai_detection.label')}
+                description={t(
+                  selected.category === ChallengeCategory.Pwn
+                    ? 'admin.content.games.challenges.ai_detection.pwn_unsupported'
+                    : 'admin.content.games.challenges.ai_detection.description'
+                )}
+                onChange={(e) => setEnableAiDetection(e.target.checked)}
+              />
+            )}
           </>
         )}
         <Button fullWidth disabled={disabled || !selected} onClick={onLink}>

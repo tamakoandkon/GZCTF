@@ -1,5 +1,5 @@
 import { Button, Group, LoadingOverlay, Stack, Tabs } from '@mantine/core'
-import { mdiExclamationThick, mdiFlag, mdiLightningBolt, mdiPackageVariant, mdiTableArrowDown } from '@mdi/js'
+import { mdiExclamationThick, mdiFlag, mdiLightningBolt, mdiPackageVariant, mdiRobotOutline, mdiTableArrowDown } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,6 +28,7 @@ export const WithGameMonitor: FC<WithGameMonitorProps> = ({ children, isLoading 
     { icon: mdiLightningBolt, title: t('game.tab.monitor.events'), path: 'events' },
     { icon: mdiFlag, title: t('game.tab.monitor.submissions'), path: 'submissions' },
     { icon: mdiExclamationThick, title: t('game.tab.monitor.cheatinfo'), path: 'cheatinfo' },
+    { icon: mdiRobotOutline, title: t('game.tab.monitor.ai_detection'), path: 'aidetection' },
     { icon: mdiPackageVariant, title: t('game.tab.monitor.traffic'), path: 'traffic' },
   ]
 
